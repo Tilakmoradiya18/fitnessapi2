@@ -22,7 +22,6 @@ public class UserProfile {
     private LocalDate dateOfBirth;
     private String gender;
     private String bio;
-
     private String country;
     private String city;
     private String zipCode;

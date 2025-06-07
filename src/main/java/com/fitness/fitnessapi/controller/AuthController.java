@@ -19,20 +19,19 @@ public class AuthController {
         return authService.signup(request);
     }
 
+
     @PostMapping("/login")
     public ApiSuccessResponse login(@RequestBody LoginRequest request) {
         return authService.login(request);
     }
+
 
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiSuccessResponse> forgotPassword(@RequestBody ForgotPasswordRequest request) {
         return ResponseEntity.ok(authService.forgotPassword(request));
     }
 
-//    @PostMapping("/reset-password")
-//    public ApiSuccessResponse resetPassword( @RequestBody ResetPasswordRequest request) {
-//        return authService.resetPassword(request);
-//    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<ApiSuccessResponse> resetPassword(
             @RequestBody ResetPasswordRequest request,
