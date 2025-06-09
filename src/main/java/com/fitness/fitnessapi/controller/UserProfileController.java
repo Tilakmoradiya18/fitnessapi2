@@ -16,7 +16,7 @@ public class UserProfileController {
     private UserProfileService profileService;
 
     @PostMapping("/setup")
-    public ApiSuccessResponse setupProfile(@Valid @RequestBody UserProfileRequest request, HttpServletRequest httpRequest) {
+    public ApiSuccessResponse setupProfile(@ModelAttribute @Valid UserProfileRequest request, HttpServletRequest httpRequest) {
         return profileService.setupProfile(request, httpRequest);
     }
 

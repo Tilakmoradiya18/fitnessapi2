@@ -10,7 +10,13 @@ import com.fitness.fitnessapi.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +45,28 @@ public class UserProfileService {
         profile.setUser(user);
         profile.setEmail(user.getEmail()); // ✅ store login user's email
 
-        profile.setImage(request.getImage());
+//        profile.setImage(request.getImage());
+        // ✅ Handle image file upload
+        MultipartFile imageFile = request.getImage();
+        if (imageFile != null && !imageFile.isEmpty()) {
+            try {
+                // Save to local filesystem (for demo), later move to S3 or DB
+                String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
+                String uploadDir = "uploads/"; // Create this folder if not exists
+                Path uploadPath = Paths.get(uploadDir);
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+                Path filePath = uploadPath.resolve(fileName);
+                Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+                // Save path or URL to DB
+                profile.setImage(fileName);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to store image: " + e.getMessage());
+            }
+        }
+
         profile.setFullName(request.getFullName());
         profile.setDateOfBirth(request.getDateOfBirth());
         profile.setGender(request.getGender());
@@ -104,7 +131,28 @@ public class UserProfileService {
         UserProfile profile = profileRepository.findByUser(user)
                 .orElseThrow(() -> new IllegalArgumentException("Profile not found"));
 
-        profile.setImage(request.getImage());
+//        profile.setImage(request.getImage());
+        // ✅ Handle image file upload
+        MultipartFile imageFile = request.getImage();
+        if (imageFile != null && !imageFile.isEmpty()) {
+            try {
+                // Save to local filesystem (for demo), later move to S3 or DB
+                String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
+                String uploadDir = "uploads/"; // Create this folder if not exists
+                Path uploadPath = Paths.get(uploadDir);
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+                Path filePath = uploadPath.resolve(fileName);
+                Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+                // Save path or URL to DB
+                profile.setImage(fileName);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to store image: " + e.getMessage());
+            }
+        }
+
         profile.setFullName(request.getFullName());
         profile.setDateOfBirth(request.getDateOfBirth());
         profile.setGender(request.getGender());
