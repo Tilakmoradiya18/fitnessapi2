@@ -13,7 +13,7 @@ import java.util.Date;
 @Component
 public class JwtUtil {
     private static final String SECRET_KEY = "my-very-secret-jwt-key-that-should-be-long-and-secure";
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10 hours
+    private static final long EXPIRATION_TIME = 1000L * 60 * 60 * 24 * 30 ; // 30 days
 
     private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
 
