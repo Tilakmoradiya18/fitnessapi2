@@ -9,6 +9,7 @@ public class UserProfileResponse {
     private String city;
     private String zipCode;
     private String imageBase64;
+    private boolean profileSetup;
 
     public UserProfileResponse(String fullName, String gender, String dateOfBirth, String bio, String country, String city, String zipCode, String imageBase64) {
         this.fullName = fullName;
@@ -81,6 +82,7 @@ public class UserProfileResponse {
         this.zipCode = zipCode;
     }
 
+
     public String getImageBase64() {
         return imageBase64;
     }
@@ -89,5 +91,12 @@ public class UserProfileResponse {
         this.imageBase64 = imageBase64;
     }
 
+    public boolean isProfileSetup() {
+        return profileSetup;
+    }
+
+    public void setProfileSetup(boolean profileSetup) {
+        this.profileSetup = profileSetup;
+    }
     // constructor, getters, and setters
 }

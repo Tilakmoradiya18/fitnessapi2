@@ -77,6 +77,9 @@ public class UserProfileService {
 
         profileRepository.save(profile);
 
+        user.setProfileSetup(true);
+        userRepository.save(user);
+
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("fullName", profile.getFullName());
         responseData.put("email", profile.getEmail());

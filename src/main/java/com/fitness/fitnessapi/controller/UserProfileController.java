@@ -27,7 +27,7 @@ public class UserProfileController {
     }
 
 
-    @PutMapping
+    @PutMapping("/update")
     public ApiSuccessResponse updateProfile(@ModelAttribute @RequestBody UserProfileRequest request, HttpServletRequest httpRequest) {
         return profileService.updateProfile(request, httpRequest);
     }
