@@ -37,4 +37,9 @@ public class AvailabilityController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/today")
+    public ApiSuccessResponse getTodaySlots(HttpServletRequest request) {
+        return availabilityService.getTodaySlots(request);
+    }
+
 }

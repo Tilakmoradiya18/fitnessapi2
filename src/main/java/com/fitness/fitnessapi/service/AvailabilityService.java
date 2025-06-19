@@ -65,6 +65,7 @@ package com.fitness.fitnessapi.service;
 import com.fitness.fitnessapi.dto.ApiSuccessResponse;
 import com.fitness.fitnessapi.dto.TimeSlotRequest;
 import com.fitness.fitnessapi.dto.AvailabilityRequest;
+import com.fitness.fitnessapi.dto.TimeSlotResponse;
 import com.fitness.fitnessapi.entity.*;
 import com.fitness.fitnessapi.repository.*;
 import com.fitness.fitnessapi.util.JwtUtil;
@@ -186,6 +187,35 @@ public class AvailabilityService {
                 responseData
         );
     }
+
+    public ApiSuccessResponse getTodaySlots(HttpServletRequest httpRequest) {
+        String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        LocalDate today = LocalDate.now();
+        List<TimeSlot> slots = timeSlotRepository.findByUserAndDate(user, today);
+
+        List<TimeSlotResponse> responseList = slots.stream().map(slot -> {
+            RatePerHour rate = ratePerHourRepository.findByTimeSlot(slot)
+                    .orElseThrow(() -> new IllegalArgumentException("Rate not found"));
+
+            return new TimeSlotResponse(
+                    slot.getDate(),
+                    slot.getStartTime(),
+                    slot.getEndTime(),
+                    rate.getPrice()
+            );
+        }).toList();
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "Today's slots fetched successfully.",
+                Map.of("slots", responseList)
+        );
+    }
+
 
 }
 
