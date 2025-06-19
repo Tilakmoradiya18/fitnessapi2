@@ -67,8 +67,8 @@ public class SlotResetScheduler {
         timeSlotRepository.saveAll(allSlots);
     }
 
-    // ✅ This runs every 30 minutes → Marks expired slots
-    @Scheduled(cron = "0 */30 * * * *")
+    // ✅ This runs every 1 minutes → Marks expired slots
+    @Scheduled(cron = "0 */1 * * * *")
     public void updateSlotExpiry() {
         LocalDate today = LocalDate.now();
         LocalTime now = LocalTime.now();
