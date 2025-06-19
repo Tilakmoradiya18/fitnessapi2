@@ -28,6 +28,10 @@ public class TimeSlot {
 
     private boolean isAvailableToday;
 
+    @Column(name = "is_expired")
+    private boolean isExpired = false;
+
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
@@ -78,5 +82,13 @@ public class TimeSlot {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public boolean isExpired() {
+        return isExpired;
+    }
+
+    public void setExpired(boolean expired) {
+        isExpired = expired;
     }
 }

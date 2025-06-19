@@ -28,10 +28,13 @@ public class AvailabilityController {
     }
 
 
-    @PostMapping("/toggle")
-    public ResponseEntity<String> toggleAvailability(@RequestBody AvailabilityRequest request,
-                                                     HttpServletRequest httpRequest) {
-        availabilityService.toggleAvailability(request, httpRequest);
-        return ResponseEntity.ok("Availability updated successfully.");
+    @PutMapping("/toggle")
+    public ResponseEntity<ApiSuccessResponse> toggleAvailability(
+            @RequestBody AvailabilityRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        ApiSuccessResponse response = availabilityService.toggleAvailability(request, httpRequest);
+        return ResponseEntity.ok(response);
     }
+
 }

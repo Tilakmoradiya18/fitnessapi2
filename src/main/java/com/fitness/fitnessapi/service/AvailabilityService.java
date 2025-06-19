@@ -74,7 +74,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
@@ -96,21 +98,37 @@ public class AvailabilityService {
 
     @Transactional
     public ApiSuccessResponse addTimeSlot(TimeSlotRequest request, HttpServletRequest httpRequest) {
+        // Validate date/time
+        LocalDate slotDate = request.getDate();
+        LocalTime startTime = request.getStartTime();
+        LocalDate today = LocalDate.now();
+
+        // Case 1: Past date
+        if (slotDate.isBefore(today)) {
+            throw new IllegalArgumentException("Cannot select a past date.");
+        }
+
+        // Case 2: Today's date but past time
+        if (slotDate.isEqual(today) && startTime.isBefore(LocalTime.now())) {
+            throw new IllegalArgumentException("Cannot select a past time today.");
+        }
+
+        // Extract user
         String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // Manually create TimeSlot
+        // Create time slot
         TimeSlot slot = new TimeSlot();
         slot.setUser(user);
-        slot.setDate(request.getDate());
-        slot.setStartTime(request.getStartTime());
+        slot.setDate(slotDate);
+        slot.setStartTime(startTime);
         slot.setEndTime(request.getEndTime());
-        slot.setAvailableToday(false); // initially false
+        slot.setAvailableToday(false);
 
         TimeSlot savedSlot = timeSlotRepository.save(slot);
 
-        // Manually create RatePerHour
+        // Create rate
         RatePerHour rate = new RatePerHour();
         rate.setUser(user);
         rate.setTimeSlot(savedSlot);
@@ -132,17 +150,32 @@ public class AvailabilityService {
     }
 
     @Transactional
-    public void toggleAvailability(AvailabilityRequest request, HttpServletRequest httpRequest) {
+    public ApiSuccessResponse toggleAvailability(AvailabilityRequest request, HttpServletRequest httpRequest) {
         String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         List<TimeSlot> slots = timeSlotRepository.findByUserAndDate(user, request.getDate());
+
         for (TimeSlot slot : slots) {
             slot.setAvailableToday(request.isAvailable());
         }
 
         timeSlotRepository.saveAll(slots);
+
+        Map<String, Object> responseData = Map.of(
+                "date", request.getDate(),
+                "available", request.isAvailable(),
+                "updatedSlots", slots.size()
+        );
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "Availability updated successfully.",
+                responseData
+        );
     }
+
 }
 
