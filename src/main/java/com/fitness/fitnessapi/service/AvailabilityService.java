@@ -96,58 +96,6 @@ public class AvailabilityService {
     @Autowired
     private JwtUtil jwtUtil;
 
-//    @Transactional
-//    public ApiSuccessResponse addTimeSlot(TimeSlotRequest request, HttpServletRequest httpRequest) {
-//        // Validate date/time
-//        LocalDate slotDate = request.getDate();
-//        LocalTime startTime = request.getStartTime();
-//        LocalDate today = LocalDate.now();
-//
-//        // Case 1: Past date
-//        if (slotDate.isBefore(today)) {
-//            throw new IllegalArgumentException("Cannot select a past date.");
-//        }
-//
-//        // Case 2: Today's date but past time
-//        if (slotDate.isEqual(today) && startTime.isBefore(LocalTime.now())) {
-//            throw new IllegalArgumentException("Cannot select a past time today.");
-//        }
-//
-//        // Extract user
-//        String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
-//        User user = userRepository.findByEmail(email)
-//                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-//
-//        // Create time slot
-//        TimeSlot slot = new TimeSlot();
-//        slot.setUser(user);
-//        slot.setDate(slotDate);
-//        slot.setStartTime(startTime);
-//        slot.setEndTime(request.getEndTime());
-//        slot.setAvailableToday(false);
-//
-//        TimeSlot savedSlot = timeSlotRepository.save(slot);
-//
-//        // Create rate
-//        RatePerHour rate = new RatePerHour();
-//        rate.setUser(user);
-//        rate.setTimeSlot(savedSlot);
-//        rate.setPrice(request.getHourlyRate());
-//
-//        ratePerHourRepository.save(rate);
-//
-//        Map<String, Object> responseData = Map.of(
-//                "slotId", savedSlot.getId(),
-//                "rate", rate.getPrice()
-//        );
-//
-//        return new ApiSuccessResponse(
-//                LocalDateTime.now(),
-//                200,
-//                "Slot added successfully.",
-//                responseData
-//        );
-//    }
 
     @Transactional
     public ApiSuccessResponse addTimeSlot(TimeSlotRequest request, HttpServletRequest httpRequest) {
@@ -199,7 +147,7 @@ public class AvailabilityService {
         Map<String, Object> responseData = Map.of(
                 "slotId", savedSlot.getId(),
                 "isAvailableToday", savedSlot.isAvailableToday(),
-                "rate", rate.getPrice()
+                "rate/hour($)", rate.getPrice()
         );
 
         return new ApiSuccessResponse(
