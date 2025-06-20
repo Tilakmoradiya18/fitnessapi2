@@ -99,13 +99,108 @@ public class AvailabilityService {
     @Autowired
     private JwtUtil jwtUtil;
 
-
+//
+//    @Transactional
+//    public ApiSuccessResponse addTimeSlot(TimeSlotRequest request, HttpServletRequest httpRequest) {
+//        // 1. Validate date/time
+//        LocalDate slotDate = request.getDate();
+//        LocalTime startTime = request.getStartTime();
+//        LocalTime endTime = request.getEndTime();
+//        LocalDate today = LocalDate.now();
+//
+//        if (slotDate.isBefore(today)) {
+//            throw new IllegalArgumentException("Cannot select a past date.");
+//        }
+//
+//        if (slotDate.isEqual(today) && startTime.isBefore(LocalTime.now())) {
+//            throw new IllegalArgumentException("Cannot select a past time today.");
+//        }
+//
+//        // 2. Get logged-in user
+//        String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
+//        User user = userRepository.findByEmail(email)
+//                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+//
+//        // ✅ 3. Check if the same slot already exists
+//        Optional<TimeSlot> existingSlot = timeSlotRepository
+//                .findByUserAndDateAndStartTimeAndEndTime(user, slotDate, startTime, endTime);
+//
+//        if (existingSlot.isPresent()) {
+//            // Return existing slot info without creating a new one
+//            RatePerHour rate = ratePerHourRepository.findByUser(user)
+//                    .orElseThrow(() -> new IllegalArgumentException("Rate not found"));
+//
+//            Map<String, Object> responseData = Map.of(
+//                    "slotId", existingSlot.get().getId(),
+//                    "hourlyRate", rate.getPrice(),
+//                    "startTime", existingSlot.get().getStartTime(),
+//                    "endTime", existingSlot.get().getEndTime(),
+//                    "slotExists", true
+//            );
+//
+//            return new ApiSuccessResponse(
+//                    LocalDateTime.now(),
+//                    200,
+//                    "Slot already exists for the selected time.",
+//                    responseData
+//            );
+//        }
+//
+//        // 4. Determine isAvailableToday
+//        boolean isAvailableToday = false;
+//        if (slotDate.isEqual(today)) {
+//            List<TimeSlot> existingToday = timeSlotRepository.findByUserAndDateAndActiveTrue(user, slotDate);
+//            isAvailableToday = existingToday.stream().anyMatch(TimeSlot::isAvailableToday);
+//        }
+//
+//        // 5. Save new time slot
+//        TimeSlot slot = new TimeSlot();
+//        slot.setUser(user);
+//        slot.setDate(slotDate);
+//        slot.setStartTime(startTime);
+//        slot.setEndTime(endTime);
+//        slot.setAvailableToday(isAvailableToday);
+//        slot.setExpired(false);
+//        slot.setActive(true); // don't forget this in soft delete setup
+//
+//        TimeSlot savedSlot = timeSlotRepository.save(slot);
+//
+//        // ✅ 6. Update or insert user's single rate record
+//        Optional<RatePerHour> existingRate = ratePerHourRepository.findByUser(user);
+//        RatePerHour rate;
+//        if (existingRate.isPresent()) {
+//            rate = existingRate.get();
+//            rate.setPrice(request.getHourlyRate()); // update rate
+//        } else {
+//            rate = new RatePerHour();
+//            rate.setUser(user);
+//            rate.setPrice(request.getHourlyRate());
+//        }
+//
+//        ratePerHourRepository.save(rate);
+//
+//        // ✅ 7. Return clean response
+//        Map<String, Object> responseData = Map.of(
+//                "slotId", savedSlot.getId(),
+//                "hourlyRate", rate.getPrice(),
+//                "startTime", savedSlot.getStartTime(),
+//                "endTime", savedSlot.getEndTime(),
+//                "slotExists", false
+//        );
+//
+//        return new ApiSuccessResponse(
+//                LocalDateTime.now(),
+//                200,
+//                "Slot and user's hourly rate saved successfully.",
+//                responseData
+//        );
+//    }
 
     @Transactional
     public ApiSuccessResponse addTimeSlot(TimeSlotRequest request, HttpServletRequest httpRequest) {
-        // 1. Validate date/time
         LocalDate slotDate = request.getDate();
         LocalTime startTime = request.getStartTime();
+        LocalTime endTime = request.getEndTime();
         LocalDate today = LocalDate.now();
 
         if (slotDate.isBefore(today)) {
@@ -116,58 +211,81 @@ public class AvailabilityService {
             throw new IllegalArgumentException("Cannot select a past time today.");
         }
 
-        // 2. Get logged-in user
         String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // 3. Determine isAvailableToday
+        // ✅ 1. Check for existing slot
+        Optional<TimeSlot> existingSlot = timeSlotRepository
+                .findByUserAndDateAndStartTimeAndEndTime(user, slotDate, startTime, endTime);
+
+        // ✅ 2. Always update rate regardless of slot duplication
+        Optional<RatePerHour> existingRate = ratePerHourRepository.findByUser(user);
+        RatePerHour rate;
+        if (existingRate.isPresent()) {
+            rate = existingRate.get();
+            rate.setPrice(request.getHourlyRate()); // ✅ update to new rate always
+        } else {
+            rate = new RatePerHour();
+            rate.setUser(user);
+            rate.setPrice(request.getHourlyRate());
+        }
+        ratePerHourRepository.save(rate);
+
+        if (existingSlot.isPresent()) {
+            // Slot already exists, don’t insert again
+            Map<String, Object> responseData = Map.of(
+                    "slotId", existingSlot.get().getId(),
+                    "hourlyRate", rate.getPrice(),
+                    "startTime", existingSlot.get().getStartTime(),
+                    "endTime", existingSlot.get().getEndTime(),
+                    "slotExists", true
+            );
+
+            return new ApiSuccessResponse(
+                    LocalDateTime.now(),
+                    200,
+                    "Slot already exists, rate updated successfully.",
+                    responseData
+            );
+        }
+
+        // ✅ 3. Determine isAvailableToday
         boolean isAvailableToday = false;
         if (slotDate.isEqual(today)) {
             List<TimeSlot> existingToday = timeSlotRepository.findByUserAndDateAndActiveTrue(user, slotDate);
             isAvailableToday = existingToday.stream().anyMatch(TimeSlot::isAvailableToday);
         }
 
-        // 4. Save new time slot
+        // ✅ 4. Create new slot if it doesn’t exist
         TimeSlot slot = new TimeSlot();
         slot.setUser(user);
         slot.setDate(slotDate);
         slot.setStartTime(startTime);
-        slot.setEndTime(request.getEndTime());
+        slot.setEndTime(endTime);
         slot.setAvailableToday(isAvailableToday);
         slot.setExpired(false);
+        slot.setActive(true);
 
         TimeSlot savedSlot = timeSlotRepository.save(slot);
 
-        // ✅ 5. Update or insert user's single rate record
-        Optional<RatePerHour> existingRate = ratePerHourRepository.findByUser(user);
-        RatePerHour rate;
-        if (existingRate.isPresent()) {
-            rate = existingRate.get();
-            rate.setPrice(request.getHourlyRate()); // ✅ update rate
-        } else {
-            rate = new RatePerHour();
-            rate.setUser(user);
-            rate.setPrice(request.getHourlyRate());
-        }
-
-        ratePerHourRepository.save(rate);
-
-        // ✅ 6. Return clean response
         Map<String, Object> responseData = Map.of(
                 "slotId", savedSlot.getId(),
                 "hourlyRate", rate.getPrice(),
                 "startTime", savedSlot.getStartTime(),
-                "endTime", savedSlot.getEndTime()
+                "endTime", savedSlot.getEndTime(),
+                "slotExists", false
         );
 
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
                 200,
-                "Slot and user's hourly rate saved successfully.",
+                "Slot and rate saved successfully.",
                 responseData
         );
     }
+
+
 
 
     @Transactional

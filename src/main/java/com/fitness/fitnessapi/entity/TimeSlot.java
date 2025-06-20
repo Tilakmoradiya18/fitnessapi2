@@ -12,7 +12,7 @@ import lombok.Builder; // Make sure this import exists
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "time_slots")
+@Table(name = "time_slots", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "date", "start_time", "end_time"}))
 
 public class TimeSlot {
 
