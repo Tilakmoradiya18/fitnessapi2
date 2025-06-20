@@ -11,6 +11,7 @@ import java.util.Optional;
 
 public interface TimeSlotRepository extends JpaRepository<TimeSlot, Long> {
     List<TimeSlot> findByUserAndDateAndActiveTrue(User user, LocalDate date);
+    List<TimeSlot> findByUserAndActiveTrue(User user);
 
         Optional<TimeSlot> findByIdAndUserAndActiveTrue(Long id, User user);
         Optional<TimeSlot> findByUserAndDateAndStartTimeAndEndTime(User user, LocalDate date, LocalTime startTime, LocalTime endTime);

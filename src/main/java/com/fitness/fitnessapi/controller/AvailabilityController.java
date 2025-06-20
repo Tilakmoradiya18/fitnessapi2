@@ -40,21 +40,13 @@ public class AvailabilityController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/today")
+
+    @GetMapping("/slots")
     public ResponseEntity<ApiSuccessResponse> getTodaySlots(HttpServletRequest request) {
-        ApiSuccessResponse response = availabilityService.getTodaySlots(request);
+        ApiSuccessResponse response = availabilityService.getUniqueTimeSlots(request);
         return ResponseEntity.ok(response);
     }
 
-
-//    @DeleteMapping("/delete")
-//    public ResponseEntity<ApiSuccessResponse> softDeleteSlots(
-//            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-//            HttpServletRequest request) {
-//
-//        ApiSuccessResponse response = availabilityService.softDeleteSlots(date, request);
-//        return ResponseEntity.ok(response);
-//    }
 
     @DeleteMapping("/delete/{slotId}")
     public ResponseEntity<ApiSuccessResponse> softDeleteSlotById(
