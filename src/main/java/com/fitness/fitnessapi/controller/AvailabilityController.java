@@ -7,8 +7,11 @@ import com.fitness.fitnessapi.service.AvailabilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/availability")
@@ -38,8 +41,30 @@ public class AvailabilityController {
     }
 
     @GetMapping("/today")
-    public ApiSuccessResponse getTodaySlots(HttpServletRequest request) {
-        return availabilityService.getTodaySlots(request);
+    public ResponseEntity<ApiSuccessResponse> getTodaySlots(HttpServletRequest request) {
+        ApiSuccessResponse response = availabilityService.getTodaySlots(request);
+        return ResponseEntity.ok(response);
     }
+
+
+//    @DeleteMapping("/delete")
+//    public ResponseEntity<ApiSuccessResponse> softDeleteSlots(
+//            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+//            HttpServletRequest request) {
+//
+//        ApiSuccessResponse response = availabilityService.softDeleteSlots(date, request);
+//        return ResponseEntity.ok(response);
+//    }
+
+    @DeleteMapping("/delete/{slotId}")
+    public ResponseEntity<ApiSuccessResponse> softDeleteSlotById(
+            @PathVariable("slotId") Long slotId,
+            HttpServletRequest request) {
+
+        ApiSuccessResponse response = availabilityService.softDeleteSlotById(slotId, request);
+        return ResponseEntity.ok(response);
+    }
+
+
 
 }

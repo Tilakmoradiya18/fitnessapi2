@@ -100,76 +100,6 @@ public class AvailabilityService {
     private JwtUtil jwtUtil;
 
 
-//    @Transactional
-//    public ApiSuccessResponse addTimeSlot(TimeSlotRequest request, HttpServletRequest httpRequest) {
-//        // 1. Validate date/time
-//        LocalDate slotDate = request.getDate();
-//        LocalTime startTime = request.getStartTime();
-//        LocalDate today = LocalDate.now();
-//
-//        if (slotDate.isBefore(today)) {
-//            throw new IllegalArgumentException("Cannot select a past date.");
-//        }
-//
-//        if (slotDate.isEqual(today) && startTime.isBefore(LocalTime.now())) {
-//            throw new IllegalArgumentException("Cannot select a past time today.");
-//        }
-//
-//        // 2. Get logged-in user
-//        String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
-//        User user = userRepository.findByEmail(email)
-//                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-//
-//        // 3. Determine isAvailableToday
-//        boolean isAvailableToday = false;
-//        if (slotDate.isEqual(today)) {
-//            List<TimeSlot> existingToday = timeSlotRepository.findByUserAndDate(user, slotDate);
-//            isAvailableToday = existingToday.stream().anyMatch(TimeSlot::isAvailableToday);
-//        }
-//
-//        // 4. Save time slot
-//        TimeSlot slot = new TimeSlot();
-//        slot.setUser(user);
-//        slot.setDate(slotDate);
-//        slot.setStartTime(startTime);
-//        slot.setEndTime(request.getEndTime());
-//        slot.setAvailableToday(isAvailableToday);
-//        slot.setExpired(false);
-//
-//        TimeSlot savedSlot = timeSlotRepository.save(slot);
-//
-//        // ✅ 5. Check if rate already exists for this slot
-//        Optional<RatePerHour> existingRateOpt = ratePerHourRepository.findByTimeSlot(savedSlot);
-//        RatePerHour rate;
-//        if (existingRateOpt.isPresent()) {
-//            // Update existing rate
-//            rate = existingRateOpt.get();
-//            rate.setPrice(request.getHourlyRate());
-//        } else {
-//            // Create new rate
-//            rate = new RatePerHour();
-//            rate.setUser(user);
-//            rate.setTimeSlot(savedSlot);
-//            rate.setPrice(request.getHourlyRate());
-//        }
-//
-//        ratePerHourRepository.save(rate);
-//
-//        // 6. Return response
-//        Map<String, Object> responseData = Map.of(
-//                "slotId", savedSlot.getId(),
-//                "hourlyRate", rate.getPrice(),
-//                "startTime", savedSlot.getStartTime(),
-//                "endTime", savedSlot.getEndTime()
-//        );
-//
-//        return new ApiSuccessResponse(
-//                LocalDateTime.now(),
-//                200,
-//                "Slot and rate saved successfully.",
-//                responseData
-//        );
-//    }
 
     @Transactional
     public ApiSuccessResponse addTimeSlot(TimeSlotRequest request, HttpServletRequest httpRequest) {
@@ -194,7 +124,7 @@ public class AvailabilityService {
         // 3. Determine isAvailableToday
         boolean isAvailableToday = false;
         if (slotDate.isEqual(today)) {
-            List<TimeSlot> existingToday = timeSlotRepository.findByUserAndDate(user, slotDate);
+            List<TimeSlot> existingToday = timeSlotRepository.findByUserAndDateAndActiveTrue(user, slotDate);
             isAvailableToday = existingToday.stream().anyMatch(TimeSlot::isAvailableToday);
         }
 
@@ -240,24 +170,31 @@ public class AvailabilityService {
     }
 
 
-
     @Transactional
     public ApiSuccessResponse toggleAvailability(AvailabilityRequest request, HttpServletRequest httpRequest) {
         String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        List<TimeSlot> slots = timeSlotRepository.findByUserAndDate(user, request.getDate());
+        LocalDate requestDate = request.getDate();
+        boolean requestedAvailability = request.isAvailable();
+
+        // ❌ Prevent setting isAvailableToday = true for past dates
+        if (requestDate.isBefore(LocalDate.now()) && requestedAvailability) {
+            throw new IllegalArgumentException("Cannot set availability to true for past dates.");
+        }
+
+        List<TimeSlot> slots = timeSlotRepository.findByUserAndDateAndActiveTrue(user, requestDate);
 
         for (TimeSlot slot : slots) {
-            slot.setAvailableToday(request.isAvailable());
+            slot.setAvailableToday(requestedAvailability);
         }
 
         timeSlotRepository.saveAll(slots);
 
         Map<String, Object> responseData = Map.of(
-                "date", request.getDate(),
-                "available", request.isAvailable(),
+                "date", requestDate,
+                "available", requestedAvailability,
                 "updatedSlots", slots.size()
         );
 
@@ -269,13 +206,18 @@ public class AvailabilityService {
         );
     }
 
+
+
+    @Transactional
     public ApiSuccessResponse getTodaySlots(HttpServletRequest httpRequest) {
         String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         LocalDate today = LocalDate.now();
-        List<TimeSlot> slots = timeSlotRepository.findByUserAndDate(user, today);
+
+        // ✅ Fetch only active (non-deleted) slots for today
+        List<TimeSlot> slots = timeSlotRepository.findByUserAndDateAndActiveTrue(user, today);
 
         RatePerHour rate = ratePerHourRepository.findByUser(user)
                 .orElseThrow(() -> new IllegalArgumentException("Rate not found"));
@@ -298,6 +240,27 @@ public class AvailabilityService {
                 200,
                 "Today's slots fetched successfully.",
                 responseData
+        );
+    }
+
+
+    @Transactional
+    public ApiSuccessResponse softDeleteSlotById(Long slotId, HttpServletRequest httpRequest) {
+        String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        TimeSlot slot = timeSlotRepository.findByIdAndUserAndActiveTrue(slotId, user)
+                .orElseThrow(() -> new IllegalArgumentException("Slot not found or already deleted."));
+
+        slot.setActive(false); // Soft delete
+        timeSlotRepository.save(slot);
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "Slot deleted successfully.",
+                Map.of("deletedSlotId", slotId)
         );
     }
 

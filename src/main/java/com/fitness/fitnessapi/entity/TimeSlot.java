@@ -31,6 +31,9 @@ public class TimeSlot {
     @Column(name = "is_expired")
     private boolean isExpired = false;
 
+    @Column(name = "is_active")
+    private boolean active = true;
+
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -90,5 +93,13 @@ public class TimeSlot {
 
     public void setExpired(boolean expired) {
         isExpired = expired;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 }
