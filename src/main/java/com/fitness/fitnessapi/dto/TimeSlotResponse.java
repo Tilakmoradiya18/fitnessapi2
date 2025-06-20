@@ -19,13 +19,6 @@ public class TimeSlotResponse {
     public TimeSlotResponse(LocalDate date, LocalTime startTime, LocalTime endTime, Double price) {
     }
 
-//    public TimeSlotResponse(LocalDate date, LocalTime startTime, LocalTime endTime, double hourlyRate) {
-//        this.date = date;
-//        this.startTime = startTime;
-//        this.endTime = endTime;
-//        this.hourlyRate = hourlyRate;
-//    }
-
 
     public LocalDate getDate() {
         return date;

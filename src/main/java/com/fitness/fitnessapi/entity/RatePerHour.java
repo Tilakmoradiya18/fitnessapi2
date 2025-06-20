@@ -1,15 +1,8 @@
 package com.fitness.fitnessapi.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
-import lombok.Builder; // Make sure this import exists
-
 
 @Entity
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 @Table(name = "rate_per_hour")
 public class RatePerHour {
 
@@ -17,15 +10,11 @@ public class RatePerHour {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Double price;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @OneToOne
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @OneToOne
-    @JoinColumn(name = "time_slot_id")
-    private TimeSlot timeSlot;
+    private double price;
 
     public Long getId() {
         return id;
@@ -33,14 +22,6 @@ public class RatePerHour {
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public Double getPrice() {
-        return price;
-    }
-
-    public void setPrice(Double price) {
-        this.price = price;
     }
 
     public User getUser() {
@@ -51,11 +32,13 @@ public class RatePerHour {
         this.user = user;
     }
 
-    public TimeSlot getTimeSlot() {
-        return timeSlot;
+    public double getPrice() {
+        return price;
     }
 
-    public void setTimeSlot(TimeSlot timeSlot) {
-        this.timeSlot = timeSlot;
+    public void setPrice(double price) {
+        this.price = price;
     }
+
+    // getters and setters
 }
