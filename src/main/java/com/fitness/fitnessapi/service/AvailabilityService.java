@@ -72,6 +72,7 @@ import com.fitness.fitnessapi.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -154,7 +155,7 @@ public class AvailabilityService {
         // ✅ 3. Determine isAvailableToday
         boolean isAvailableToday = false;
         if (slotDate.isEqual(today)) {
-            List<TimeSlot> existingToday = timeSlotRepository.findByUserAndDateAndActiveTrue(user, slotDate);
+            List<TimeSlot> existingToday = timeSlotRepository.findByUserAndDateAndIsDeletedFalse(user, slotDate);
             isAvailableToday = existingToday.stream().anyMatch(TimeSlot::isAvailableToday);
         }
 
@@ -187,8 +188,6 @@ public class AvailabilityService {
     }
 
 
-
-
     @Transactional
     public ApiSuccessResponse toggleAvailability(AvailabilityRequest request, HttpServletRequest httpRequest) {
         String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
@@ -203,7 +202,7 @@ public class AvailabilityService {
             throw new IllegalArgumentException("Cannot set availability to true for past dates.");
         }
 
-        List<TimeSlot> slots = timeSlotRepository.findByUserAndDateAndActiveTrue(user, requestDate);
+        List<TimeSlot> slots = timeSlotRepository.findByUserAndDateAndIsDeletedFalse(user, requestDate);
 
         for (TimeSlot slot : slots) {
             slot.setAvailableToday(requestedAvailability);
@@ -225,67 +224,71 @@ public class AvailabilityService {
         );
     }
 
-@Transactional
-public ApiSuccessResponse getUniqueTimeSlots(HttpServletRequest httpRequest) {
-    String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
-    User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-    // 1. Fetch all active slots (across all dates)
-    List<TimeSlot> slots = timeSlotRepository.findByUserAndActiveTrue(user);
-
-    // 2. Extract unique (startTime, endTime) combinations
-    Set<String> seen = new HashSet<>();
-    List<Map<String, Object>> uniqueSlotList = new ArrayList<>();
-
-    for (TimeSlot slot : slots) {
-        String key = slot.getStartTime() + "-" + slot.getEndTime();
-        if (seen.add(key)) {
-            uniqueSlotList.add(Map.of(
-                    "startTime", slot.getStartTime().toString(),
-                    "endTime", slot.getEndTime().toString()
-            ));
-        }
-    }
-
-    // 3. Fetch user's hourly rate
-    RatePerHour rate = ratePerHourRepository.findByUser(user)
-            .orElseThrow(() -> new IllegalArgumentException("Rate not found"));
-
-    // 4. Response structure
-    Map<String, Object> responseData = Map.of(
-            "slots", uniqueSlotList,
-            "hourlyRate", rate.getPrice()
-    );
-
-    return new ApiSuccessResponse(
-            LocalDateTime.now(),
-            200,
-            "slots fetched successfully.",
-            responseData
-    );
-}
-
-
     @Transactional
-    public ApiSuccessResponse softDeleteSlotById(Long slotId, HttpServletRequest httpRequest) {
+    public ApiSuccessResponse getUniqueTimeSlots(HttpServletRequest httpRequest) {
         String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        TimeSlot slot = timeSlotRepository.findByIdAndUserAndActiveTrue(slotId, user)
-                .orElseThrow(() -> new IllegalArgumentException("Slot not found or already deleted."));
+        // 1. Fetch all active slots (across all dates)
+        List<TimeSlot> slots = timeSlotRepository.findByUserAndIsDeletedFalse(user);
 
-        slot.setActive(false); // Soft delete
+        // 2. Extract unique (startTime, endTime) combinations
+        Set<String> seen = new HashSet<>();
+        List<Map<String, Object>> uniqueSlotList = new ArrayList<>();
+
+        for (TimeSlot slot : slots) {
+            String key = slot.getStartTime() + "-" + slot.getEndTime();
+            if (seen.add(key)) {
+                uniqueSlotList.add(Map.of(
+                        "startTime", slot.getStartTime().toString(),
+                        "endTime", slot.getEndTime().toString()
+                ));
+            }
+        }
+
+        // 3. Fetch user's hourly rate
+        RatePerHour rate = ratePerHourRepository.findByUser(user)
+                .orElseThrow(() -> new IllegalArgumentException("Rate not found"));
+
+        // 4. Response structure
+        Map<String, Object> responseData = Map.of(
+                "slots", uniqueSlotList,
+                "hourlyRate", rate.getPrice()
+        );
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "slots fetched successfully.",
+                responseData
+        );
+    }
+
+
+    public ApiSuccessResponse softDeleteSlotById(Long slotId, HttpServletRequest request) {
+        String email = jwtUtil.extractUsername(jwtUtil.extractToken(request));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        TimeSlot slot = timeSlotRepository.findById(slotId)
+                .orElseThrow(() -> new IllegalArgumentException("Slot not found"));
+
+        if (!slot.getUser().equals(user)) {
+            throw new AccessDeniedException("Unauthorized slot access.");
+        }
+
+        slot.setDeleted(true);
         timeSlotRepository.save(slot);
 
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
                 200,
-                "Slot deleted successfully.",
-                Map.of("deletedSlotId", slotId)
+                "Slot soft deleted successfully.",
+                Map.of("slotId", slotId)
         );
     }
+
 
 }
 

@@ -34,6 +34,8 @@ public class TimeSlot {
     @Column(name = "is_active")
     private boolean active = true;
 
+    @Column(name = "is_deleted")
+    private boolean isDeleted = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -101,5 +103,13 @@ public class TimeSlot {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public boolean isDeleted() {
+        return isDeleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        isDeleted = deleted;
     }
 }

@@ -27,6 +27,7 @@ public class User {
     @Column(name = "profile_setup")
     private boolean profileSetup = false;
 
+
     public Long getId() {
         return id;
     }
@@ -67,7 +68,6 @@ public class User {
         this.active = active;
     }
 
-
     public boolean isProfileSetup() {
         return profileSetup;
     }
@@ -75,4 +75,5 @@ public class User {
     public void setProfileSetup(boolean profileSetup) {
         this.profileSetup = profileSetup;
     }
+
 }
