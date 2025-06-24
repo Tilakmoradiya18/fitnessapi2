@@ -27,6 +27,16 @@ public class User {
     @Column(name = "profile_setup")
     private boolean profileSetup = false;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private UserProfile userProfile;
+
+    public UserProfile getUserProfile() {
+        return userProfile;
+    }
+
+    public void setUserProfile(UserProfile userProfile) {
+        this.userProfile = userProfile;
+    }
 
     public Long getId() {
         return id;

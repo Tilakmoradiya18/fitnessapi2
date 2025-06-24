@@ -62,20 +62,20 @@
 
 package com.fitness.fitnessapi.service;
 
-import com.fitness.fitnessapi.dto.ApiSuccessResponse;
-import com.fitness.fitnessapi.dto.TimeSlotRequest;
-import com.fitness.fitnessapi.dto.AvailabilityRequest;
-import com.fitness.fitnessapi.dto.TimeSlotResponse;
+import com.fitness.fitnessapi.dto.*;
 import com.fitness.fitnessapi.entity.*;
 import com.fitness.fitnessapi.repository.*;
 import com.fitness.fitnessapi.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+//import org.hibernate.query.Page;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.data.domain.Page;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -97,101 +97,6 @@ public class AvailabilityService {
     @Autowired
     private JwtUtil jwtUtil;
 
-
-//    @Transactional
-//    public ApiSuccessResponse addTimeSlot(TimeSlotRequest request, HttpServletRequest httpRequest) {
-//        LocalDate slotDate = request.getDate();
-//        LocalTime startTime = request.getStartTime();
-//        LocalTime endTime = request.getEndTime();
-//        LocalDate today = LocalDate.now();
-//
-//        if (slotDate.isBefore(today)) {
-//            throw new IllegalArgumentException("Cannot select a past date.");
-//        }
-//
-//        if (slotDate.isEqual(today) && startTime.isBefore(LocalTime.now())) {
-//            throw new IllegalArgumentException("Cannot select a past time today.");
-//        }
-//
-//        String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
-//        User user = userRepository.findByEmail(email)
-//                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-//
-//        List<TimeSlot> allSlots = timeSlotRepository.findByUser(user);
-//        for (TimeSlot slot : allSlots) {
-//            slot.setDeleted(true);
-//        }
-//        timeSlotRepository.saveAll(allSlots);
-//
-//        // ✅ 1. Check for existing slot
-//        Optional<TimeSlot> existingSlot = timeSlotRepository
-//                .findByUserAndDateAndStartTimeAndEndTime(user, slotDate, startTime, endTime);
-//
-//        // ✅ 2. Always update rate regardless of slot duplication
-//        Optional<RatePerHour> existingRate = ratePerHourRepository.findByUser(user);
-//        RatePerHour rate;
-//        if (existingRate.isPresent()) {
-//            rate = existingRate.get();
-//            rate.setPrice(request.getHourlyRate()); // ✅ update to new rate always
-//        } else {
-//            rate = new RatePerHour();
-//            rate.setUser(user);
-//            rate.setPrice(request.getHourlyRate());
-//        }
-//        ratePerHourRepository.save(rate);
-//
-//        if (existingSlot.isPresent()) {
-//            // Slot already exists, don’t insert again
-//            Map<String, Object> responseData = Map.of(
-//                    "slotId", existingSlot.get().getId(),
-//                    "hourlyRate", rate.getPrice(),
-//                    "startTime", existingSlot.get().getStartTime(),
-//                    "endTime", existingSlot.get().getEndTime(),
-//                    "slotExists", true
-//            );
-//
-//            return new ApiSuccessResponse(
-//                    LocalDateTime.now(),
-//                    200,
-//                    "Slot already exists, rate updated successfully.",
-//                    responseData
-//            );
-//        }
-//
-//        // ✅ 3. Determine isAvailableToday
-//        boolean isAvailableToday = false;
-//        if (slotDate.isEqual(today)) {
-//            List<TimeSlot> existingToday = timeSlotRepository.findByUserAndDateAndIsDeletedFalse(user, slotDate);
-//            isAvailableToday = existingToday.stream().anyMatch(TimeSlot::isAvailableToday);
-//        }
-//
-//        // ✅ 4. Create new slot if it doesn’t exist
-//        TimeSlot slot = new TimeSlot();
-//        slot.setUser(user);
-//        slot.setDate(slotDate);
-//        slot.setStartTime(startTime);
-//        slot.setEndTime(endTime);
-//        slot.setAvailableToday(isAvailableToday);
-//        slot.setExpired(false);
-//        slot.setActive(true);
-//
-//        TimeSlot savedSlot = timeSlotRepository.save(slot);
-//
-//        Map<String, Object> responseData = Map.of(
-//                "slotId", savedSlot.getId(),
-//                "hourlyRate", rate.getPrice(),
-//                "startTime", savedSlot.getStartTime(),
-//                "endTime", savedSlot.getEndTime(),
-//                "slotExists", false
-//        );
-//
-//        return new ApiSuccessResponse(
-//                LocalDateTime.now(),
-//                200,
-//                "Slot and rate saved successfully.",
-//                responseData
-//        );
-//    }
 
     @Transactional
     public ApiSuccessResponse addTimeSlot(TimeSlotRequest request, HttpServletRequest httpRequest) {
@@ -402,6 +307,43 @@ public class AvailabilityService {
                 Map.of("slotId", slotId)
         );
     }
+
+    public ApiSuccessResponse getAvailablePartners(int page, int size) {
+        LocalDate today = LocalDate.now();
+        Pageable pageable = PageRequest.of(page, size);
+        Page<User> userPage = timeSlotRepository.findAvailableUsersForToday(today,pageable);
+
+        List<AvailablePartnerDTO> partners = userPage.getContent().stream().map(user -> {
+            UserProfile profile = user.getUserProfile();
+            return new AvailablePartnerDTO(
+                    user.getId(),
+                    profile.getFullName(),
+                    user.getEmail(),
+                    profile.getImage(), // ✅ include image URL
+                    profile.getBio(),
+                    profile.getGender(),
+                    profile.getDateOfBirth(),
+                    profile.getCity(),
+                    profile.getZipCode(),
+                    profile.getCountry()
+            );
+        }).toList();
+
+        Map<String, Object> responseData = Map.of(
+                "totalElements", userPage.getTotalElements(),
+                "totalPages", userPage.getTotalPages(),
+                "currentPage", userPage.getNumber(),
+                "partners", partners
+        );
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "Paginated available partners fetched.",
+                responseData
+        );
+    }
+
 
 
 }
