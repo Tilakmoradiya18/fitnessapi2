@@ -309,54 +309,118 @@ public class AvailabilityService {
         );
     }
 
-    public ApiSuccessResponse getAvailablePartners(int page, int size) {
+//    public ApiSuccessResponse getAvailablePartners(int page, int size) {
+//        LocalDate today = LocalDate.now();
+//        Pageable pageable = PageRequest.of(page, size);
+//
+//        Page<User> userPage = timeSlotRepository.findAvailableUsersForToday(today, pageable); // no repo rename
+//
+//        List<Map<String, Object>> partners = userPage.getContent().stream().map(user -> {
+//            UserProfile profile = user.getUserProfile();
+//
+//            // ✅ Fetch only today's active and non-expired slots
+//            List<TimeSlot> validSlots = timeSlotRepository.findByUserAndDateAndIsDeletedFalse(user, today)
+//                    .stream()
+//                    .filter(slot -> !slot.isExpired())
+//                    .toList();
+//
+//            // ✅ Map slots (startTime & endTime)
+//            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+//
+//            List<Map<String, String>> slots = validSlots.stream().map(slot -> {
+//                Map<String, String> slotMap = new LinkedHashMap<>();
+//                slotMap.put("startTime", slot.getStartTime().format(timeFormatter));
+//                slotMap.put("endTime", slot.getEndTime().format(timeFormatter));
+//                return slotMap;
+//            }).toList();
+//
+//
+//            // ✅ Construct partner response map
+//            Map<String, Object> partner = new LinkedHashMap<>();
+//            partner.put("userId", user.getId());
+//            partner.put("fullName", profile.getFullName());
+//            partner.put("email", user.getEmail());
+//            partner.put("image", profile.getImage());
+//            partner.put("bio", profile.getBio());
+//            partner.put("gender", profile.getGender());
+//            partner.put("dateOfBirth", profile.getDateOfBirth());
+//            partner.put("city", profile.getCity());
+//            partner.put("zipCode", profile.getZipCode());
+//            partner.put("country", profile.getCountry());
+//            partner.put("slots", slots); // ✅ valid slots
+//
+//            return partner;
+//        }).toList();
+//
+//        // ✅ Final response
+//        Map<String, Object> responseData = new HashMap<>();
+//        responseData.put("totalElements", userPage.getTotalElements());
+//        responseData.put("totalPages", userPage.getTotalPages());
+//        responseData.put("currentPage", userPage.getNumber());
+//        responseData.put("partners", partners);
+//
+//        return new ApiSuccessResponse(
+//                LocalDateTime.now(),
+//                200,
+//                "Paginated available partners with slots fetched.",
+//                responseData
+//        );
+//    }
+
+    public ApiSuccessResponse getAvailablePartners(int page, int size, HttpServletRequest request) {
         LocalDate today = LocalDate.now();
         Pageable pageable = PageRequest.of(page, size);
 
-        Page<User> userPage = timeSlotRepository.findAvailableUsersForToday(today, pageable); // no repo rename
+        // ✅ Get logged-in user
+        String email = jwtUtil.extractUsername(jwtUtil.extractToken(request));
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        List<Map<String, Object>> partners = userPage.getContent().stream().map(user -> {
-            UserProfile profile = user.getUserProfile();
+        Page<User> userPage = timeSlotRepository.findAvailableUsersForToday(today, pageable);
 
-            // ✅ Fetch only today's active and non-expired slots
-            List<TimeSlot> validSlots = timeSlotRepository.findByUserAndDateAndIsDeletedFalse(user, today)
-                    .stream()
-                    .filter(slot -> !slot.isExpired())
-                    .toList();
+        List<Map<String, Object>> partners = userPage.getContent().stream()
+                .filter(user -> !user.getId().equals(currentUser.getId())) // ✅ Exclude self
+                .map(user -> {
+                    UserProfile profile = user.getUserProfile();
 
-            // ✅ Map slots (startTime & endTime)
-            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+                    // ✅ Valid slots only
+                    List<TimeSlot> validSlots = timeSlotRepository.findByUserAndDateAndIsDeletedFalse(user, today)
+                            .stream()
+                            .filter(slot -> !slot.isExpired())
+                            .toList();
 
-            List<Map<String, String>> slots = validSlots.stream().map(slot -> {
-                Map<String, String> slotMap = new LinkedHashMap<>();
-                slotMap.put("startTime", slot.getStartTime().format(timeFormatter));
-                slotMap.put("endTime", slot.getEndTime().format(timeFormatter));
-                return slotMap;
-            }).toList();
+                    if (validSlots.isEmpty()) return null;
 
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+                    List<Map<String, String>> slots = validSlots.stream().map(slot -> {
+                        Map<String, String> slotMap = new LinkedHashMap<>();
+                        slotMap.put("startTime", slot.getStartTime().format(formatter));
+                        slotMap.put("endTime", slot.getEndTime().format(formatter));
+                        return slotMap;
+                    }).toList();
 
-            // ✅ Construct partner response map
-            Map<String, Object> partner = new LinkedHashMap<>();
-            partner.put("userId", user.getId());
-            partner.put("fullName", profile.getFullName());
-            partner.put("email", user.getEmail());
-            partner.put("image", profile.getImage());
-            partner.put("bio", profile.getBio());
-            partner.put("gender", profile.getGender());
-            partner.put("dateOfBirth", profile.getDateOfBirth());
-            partner.put("city", profile.getCity());
-            partner.put("zipCode", profile.getZipCode());
-            partner.put("country", profile.getCountry());
-            partner.put("slots", slots); // ✅ valid slots
+                    Map<String, Object> partner = new LinkedHashMap<>();
+                    partner.put("userId", user.getId());
+                    partner.put("fullName", profile.getFullName());
+                    partner.put("email", user.getEmail());
+                    partner.put("image", profile.getImage());
+                    partner.put("bio", profile.getBio());
+                    partner.put("gender", profile.getGender());
+                    partner.put("dateOfBirth", profile.getDateOfBirth());
+                    partner.put("city", profile.getCity());
+                    partner.put("zipCode", profile.getZipCode());
+                    partner.put("country", profile.getCountry());
+                    partner.put("slots", slots);
 
-            return partner;
-        }).toList();
+                    return partner;
+                })
+                .filter(Objects::nonNull)
+                .toList();
 
-        // ✅ Final response
-        Map<String, Object> responseData = new HashMap<>();
-        responseData.put("totalElements", userPage.getTotalElements());
-        responseData.put("totalPages", userPage.getTotalPages());
+        Map<String, Object> responseData = new LinkedHashMap<>();
         responseData.put("currentPage", userPage.getNumber());
+        responseData.put("totalElements", partners.size());
+        responseData.put("totalPages", userPage.getTotalPages());
         responseData.put("partners", partners);
 
         return new ApiSuccessResponse(
@@ -366,6 +430,7 @@ public class AvailabilityService {
                 responseData
         );
     }
+
 
 
 }
