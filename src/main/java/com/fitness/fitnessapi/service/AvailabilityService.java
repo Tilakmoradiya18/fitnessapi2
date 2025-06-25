@@ -79,6 +79,7 @@ import org.springframework.data.domain.Page;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -311,39 +312,60 @@ public class AvailabilityService {
     public ApiSuccessResponse getAvailablePartners(int page, int size) {
         LocalDate today = LocalDate.now();
         Pageable pageable = PageRequest.of(page, size);
-        Page<User> userPage = timeSlotRepository.findAvailableUsersForToday(today,pageable);
 
-        List<AvailablePartnerDTO> partners = userPage.getContent().stream().map(user -> {
+        Page<User> userPage = timeSlotRepository.findAvailableUsersForToday(today, pageable); // no repo rename
+
+        List<Map<String, Object>> partners = userPage.getContent().stream().map(user -> {
             UserProfile profile = user.getUserProfile();
-            return new AvailablePartnerDTO(
-                    user.getId(),
-                    profile.getFullName(),
-                    user.getEmail(),
-                    profile.getImage(), // ✅ include image URL
-                    profile.getBio(),
-                    profile.getGender(),
-                    profile.getDateOfBirth(),
-                    profile.getCity(),
-                    profile.getZipCode(),
-                    profile.getCountry()
-            );
+
+            // ✅ Fetch only today's active and non-expired slots
+            List<TimeSlot> validSlots = timeSlotRepository.findByUserAndDateAndIsDeletedFalse(user, today)
+                    .stream()
+                    .filter(slot -> !slot.isExpired())
+                    .toList();
+
+            // ✅ Map slots (startTime & endTime)
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+
+            List<Map<String, String>> slots = validSlots.stream().map(slot -> {
+                Map<String, String> slotMap = new LinkedHashMap<>();
+                slotMap.put("startTime", slot.getStartTime().format(timeFormatter));
+                slotMap.put("endTime", slot.getEndTime().format(timeFormatter));
+                return slotMap;
+            }).toList();
+
+
+            // ✅ Construct partner response map
+            Map<String, Object> partner = new LinkedHashMap<>();
+            partner.put("userId", user.getId());
+            partner.put("fullName", profile.getFullName());
+            partner.put("email", user.getEmail());
+            partner.put("image", profile.getImage());
+            partner.put("bio", profile.getBio());
+            partner.put("gender", profile.getGender());
+            partner.put("dateOfBirth", profile.getDateOfBirth());
+            partner.put("city", profile.getCity());
+            partner.put("zipCode", profile.getZipCode());
+            partner.put("country", profile.getCountry());
+            partner.put("slots", slots); // ✅ valid slots
+
+            return partner;
         }).toList();
 
-        Map<String, Object> responseData = Map.of(
-                "totalElements", userPage.getTotalElements(),
-                "totalPages", userPage.getTotalPages(),
-                "currentPage", userPage.getNumber(),
-                "partners", partners
-        );
+        // ✅ Final response
+        Map<String, Object> responseData = new HashMap<>();
+        responseData.put("totalElements", userPage.getTotalElements());
+        responseData.put("totalPages", userPage.getTotalPages());
+        responseData.put("currentPage", userPage.getNumber());
+        responseData.put("partners", partners);
 
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
                 200,
-                "Paginated available partners fetched.",
+                "Paginated available partners with slots fetched.",
                 responseData
         );
     }
-
 
 
 }
