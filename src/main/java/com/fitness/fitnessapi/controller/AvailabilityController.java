@@ -57,14 +57,6 @@ public class AvailabilityController {
         return ResponseEntity.ok(response);
     }
 
-//    @GetMapping("/partners")
-//    public ResponseEntity<ApiSuccessResponse> getAvailablePartners(
-//            @RequestParam(defaultValue = "0") int page,
-//            @RequestParam(defaultValue = "10") int size) {
-//
-//        ApiSuccessResponse response = availabilityService.getAvailablePartners(page, size);
-//        return ResponseEntity.ok(response);
-//    }
 
     @GetMapping("/partners")
     public ResponseEntity<ApiSuccessResponse> getAvailablePartners(

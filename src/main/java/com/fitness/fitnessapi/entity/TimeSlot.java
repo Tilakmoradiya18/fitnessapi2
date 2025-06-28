@@ -37,6 +37,9 @@ public class TimeSlot {
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
 
+    @Column(name = "is_booked")
+    private boolean isBooked = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
@@ -111,5 +114,13 @@ public class TimeSlot {
 
     public void setDeleted(boolean deleted) {
         isDeleted = deleted;
+    }
+
+    public boolean isBooked() {
+        return isBooked;
+    }
+
+    public void setBooked(boolean booked) {
+        isBooked = booked;
     }
 }

@@ -22,4 +22,13 @@ public interface TimeSlotRepository extends JpaRepository<TimeSlot, Long> {
         @Query("SELECT DISTINCT ts.user FROM TimeSlot ts WHERE ts.date = :today AND ts.isAvailableToday = true AND ts.isDeleted = false AND ts.isExpired = false")
         Page<User> findAvailableUsersForToday(@Param("today") LocalDate today, Pageable pageable);
 
+        // For Send Request - match by time and unbooked
+        Optional<TimeSlot> findByUserIdAndStartTimeAndEndTimeAndIsBookedFalseAndIsExpiredFalse(
+                Long userId, LocalTime startTime, LocalTime endTime
+        );
+
+        // For Get Available Slots
+//        List<TimeSlot> findByUserIdAndIsBookedFalseAndIsExpiredFalse(Long userId);
+        List<TimeSlot> findByUserIdAndIsBookedFalseAndIsExpiredFalseAndIsDeletedFalse(Long userId);
+
 }

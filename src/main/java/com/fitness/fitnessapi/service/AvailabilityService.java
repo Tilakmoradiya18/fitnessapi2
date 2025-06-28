@@ -268,14 +268,13 @@ public class AvailabilityService {
         }
 
         // 3. Fetch user's hourly rate
-        RatePerHour rate = ratePerHourRepository.findByUser(user)
-                .orElseThrow(() -> new IllegalArgumentException("Rate not found"));
+        Optional<RatePerHour> optionalRate = ratePerHourRepository.findByUser(user);
+        Double hourlyRate = optionalRate.map(RatePerHour::getPrice).orElse(null);
 
         // 4. Response structure
-        Map<String, Object> responseData = Map.of(
-                "slots", uniqueSlotList,
-                "hourlyRate", rate.getPrice()
-        );
+        Map<String, Object> responseData = new LinkedHashMap<>();
+        responseData.put("slots", uniqueSlotList);
+        responseData.put("hourlyRate", hourlyRate);
 
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
@@ -308,64 +307,6 @@ public class AvailabilityService {
                 Map.of("slotId", slotId)
         );
     }
-
-//    public ApiSuccessResponse getAvailablePartners(int page, int size) {
-//        LocalDate today = LocalDate.now();
-//        Pageable pageable = PageRequest.of(page, size);
-//
-//        Page<User> userPage = timeSlotRepository.findAvailableUsersForToday(today, pageable); // no repo rename
-//
-//        List<Map<String, Object>> partners = userPage.getContent().stream().map(user -> {
-//            UserProfile profile = user.getUserProfile();
-//
-//            // ✅ Fetch only today's active and non-expired slots
-//            List<TimeSlot> validSlots = timeSlotRepository.findByUserAndDateAndIsDeletedFalse(user, today)
-//                    .stream()
-//                    .filter(slot -> !slot.isExpired())
-//                    .toList();
-//
-//            // ✅ Map slots (startTime & endTime)
-//            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
-//
-//            List<Map<String, String>> slots = validSlots.stream().map(slot -> {
-//                Map<String, String> slotMap = new LinkedHashMap<>();
-//                slotMap.put("startTime", slot.getStartTime().format(timeFormatter));
-//                slotMap.put("endTime", slot.getEndTime().format(timeFormatter));
-//                return slotMap;
-//            }).toList();
-//
-//
-//            // ✅ Construct partner response map
-//            Map<String, Object> partner = new LinkedHashMap<>();
-//            partner.put("userId", user.getId());
-//            partner.put("fullName", profile.getFullName());
-//            partner.put("email", user.getEmail());
-//            partner.put("image", profile.getImage());
-//            partner.put("bio", profile.getBio());
-//            partner.put("gender", profile.getGender());
-//            partner.put("dateOfBirth", profile.getDateOfBirth());
-//            partner.put("city", profile.getCity());
-//            partner.put("zipCode", profile.getZipCode());
-//            partner.put("country", profile.getCountry());
-//            partner.put("slots", slots); // ✅ valid slots
-//
-//            return partner;
-//        }).toList();
-//
-//        // ✅ Final response
-//        Map<String, Object> responseData = new HashMap<>();
-//        responseData.put("totalElements", userPage.getTotalElements());
-//        responseData.put("totalPages", userPage.getTotalPages());
-//        responseData.put("currentPage", userPage.getNumber());
-//        responseData.put("partners", partners);
-//
-//        return new ApiSuccessResponse(
-//                LocalDateTime.now(),
-//                200,
-//                "Paginated available partners with slots fetched.",
-//                responseData
-//        );
-//    }
 
     public ApiSuccessResponse getAvailablePartners(int page, int size, HttpServletRequest request) {
         LocalDate today = LocalDate.now();
@@ -419,7 +360,7 @@ public class AvailabilityService {
 
         Map<String, Object> responseData = new LinkedHashMap<>();
         responseData.put("currentPage", userPage.getNumber());
-        responseData.put("totalElements", partners.size());
+        responseData.put("totalElements", userPage.getTotalElements());
         responseData.put("totalPages", userPage.getTotalPages());
         responseData.put("partners", partners);
 
@@ -430,8 +371,6 @@ public class AvailabilityService {
                 responseData
         );
     }
-
-
 
 }
 
