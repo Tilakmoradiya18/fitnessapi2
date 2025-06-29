@@ -6,13 +6,15 @@ public class PartnerRequestResponseDTO {
     private String senderName;
     private SlotInfoDTO slot;
     private String status;
+    private Double hourlyRate;
 
-    public PartnerRequestResponseDTO(Long requestId,Long senderId, String senderName, SlotInfoDTO slot, String status) {
+    public PartnerRequestResponseDTO(Long requestId,Long senderId, String senderName, SlotInfoDTO slot, String status,Double hourlyRate) {
         this.requestId = requestId;
         this.senderId = senderId;
         this.senderName = senderName;
         this.slot = slot;
         this.status = status;
+        this.hourlyRate = hourlyRate;
     }
 
     // Getters and setters
@@ -56,6 +58,14 @@ public class PartnerRequestResponseDTO {
 
     public void setRequestId(Long requestId) {
         this.requestId = requestId;
+    }
+
+    public Double getHourlyRate() {
+        return hourlyRate;
+    }
+
+    public void setHourlyRate(Double hourlyRate) {
+        this.hourlyRate = hourlyRate;
     }
 }
 

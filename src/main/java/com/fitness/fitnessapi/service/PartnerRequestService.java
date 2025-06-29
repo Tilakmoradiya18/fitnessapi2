@@ -2,10 +2,12 @@ package com.fitness.fitnessapi.service;
 
 import com.fitness.fitnessapi.dto.*;
 import com.fitness.fitnessapi.entity.PartnerRequest;
+import com.fitness.fitnessapi.entity.RatePerHour;
 import com.fitness.fitnessapi.entity.TimeSlot;
 import com.fitness.fitnessapi.entity.User;
 import com.fitness.fitnessapi.enums.RequestStatus;
 import com.fitness.fitnessapi.repository.PartnerRequestRepository;
+import com.fitness.fitnessapi.repository.RatePerHourRepository;
 import com.fitness.fitnessapi.repository.TimeSlotRepository;
 import com.fitness.fitnessapi.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,10 @@ public class PartnerRequestService {
 
     @Autowired
     private TimeSlotRepository timeSlotRepository;
+
+    @Autowired
+    private RatePerHourRepository ratePerHourRepository;
+
 
     @Autowired
     private PartnerRequestRepository requestRepository;
@@ -73,25 +79,6 @@ public class PartnerRequestService {
     }
 
 
-//    public ApiSuccessResponse getAvailableSlotResponse(Long partnerId) {
-//        List<TimeSlot> slots = timeSlotRepository.findByUserIdAndIsBookedFalseAndIsExpiredFalse(partnerId);
-//
-//        List<TimeSlotResponseDTO> dtoList = slots.stream()
-//                .map(slot -> new TimeSlotResponseDTO(
-//                        slot.getId(),
-//                        slot.getStartTime().toString(),
-//                        slot.getEndTime().toString()
-//                ))
-//                .collect(Collectors.toList());
-//
-//        return new ApiSuccessResponse(
-//                LocalDateTime.now(),
-//                200,
-//                "slots fetched successfully",
-//                Map.of("slots", dtoList)
-//        );
-//    }
-
     public ApiSuccessResponse getAvailableSlotResponse(Long partnerId) {
         List<TimeSlot> slots = timeSlotRepository
                 .findByUserIdAndIsBookedFalseAndIsExpiredFalseAndIsDeletedFalse(partnerId);
@@ -112,7 +99,7 @@ public class PartnerRequestService {
         );
     }
 
-//
+
 //    public ApiSuccessResponse getUpcomingRequestsForPartner(Long partnerId) {
 //        List<PartnerRequest> requests = requestRepository
 //                .findByReceiverIdAndStatusIn(partnerId, List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED));
@@ -122,10 +109,10 @@ public class PartnerRequestService {
 //        List<PartnerRequestResponseDTO> responseList = requests.stream()
 //                .filter(req -> {
 //                    TimeSlot slot = req.getSlot();
-//                    // Include only non-expired and today or future dates
 //                    return !slot.isExpired() && !slot.getDate().isBefore(today);
 //                })
 //                .map(req -> new PartnerRequestResponseDTO(
+//                        req.getId(),  // 👈 include requestId here
 //                        req.getSender().getId(),
 //                        req.getSender().getName(),
 //                        new SlotInfoDTO(
@@ -145,21 +132,28 @@ public class PartnerRequestService {
 //                Map.of("requests", responseList)
 //        );
 //    }
+public ApiSuccessResponse getUpcomingRequestsForPartner(Long partnerId) {
+    List<PartnerRequest> requests = requestRepository
+            .findByReceiverIdAndStatusIn(partnerId, List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED));
 
-    public ApiSuccessResponse getUpcomingRequestsForPartner(Long partnerId) {
-        List<PartnerRequest> requests = requestRepository
-                .findByReceiverIdAndStatusIn(partnerId, List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED));
+    LocalDate today = LocalDate.now();
 
-        LocalDate today = LocalDate.now();
+    List<PartnerRequestResponseDTO> responseList = requests.stream()
+            .filter(req -> {
+                TimeSlot slot = req.getSlot();
+                return !slot.isExpired() && !slot.getDate().isBefore(today);
+            })
+            .map(req -> {
+                Long senderId = req.getSender().getId();
 
-        List<PartnerRequestResponseDTO> responseList = requests.stream()
-                .filter(req -> {
-                    TimeSlot slot = req.getSlot();
-                    return !slot.isExpired() && !slot.getDate().isBefore(today);
-                })
-                .map(req -> new PartnerRequestResponseDTO(
-                        req.getId(),  // 👈 include requestId here
-                        req.getSender().getId(),
+                // Fetch hourly rate from rate_per_hour table
+                Double hourlyRate = ratePerHourRepository.findByUserId(senderId)
+                        .map(RatePerHour::getPrice)
+                        .orElse(null); // or .orElse(0.0) if you want default
+
+                return new PartnerRequestResponseDTO(
+                        req.getId(),
+                        senderId,
                         req.getSender().getName(),
                         new SlotInfoDTO(
                                 req.getSlot().getId(),
@@ -167,17 +161,19 @@ public class PartnerRequestService {
                                 req.getSlot().getEndTime().toString(),
                                 req.getSlot().getDate().toString()
                         ),
-                        req.getStatus().name()
-                ))
-                .collect(Collectors.toList());
+                        req.getStatus().name(),
+                        hourlyRate // added hourly rate
+                );
+            })
+            .collect(Collectors.toList());
 
-        return new ApiSuccessResponse(
-                LocalDateTime.now(),
-                200,
-                "Upcoming requests fetched successfully.",
-                Map.of("requests", responseList)
-        );
-    }
+    return new ApiSuccessResponse(
+            LocalDateTime.now(),
+            200,
+            "Upcoming requests fetched successfully.",
+            Map.of("requests", responseList)
+    );
+}
 
 
 
@@ -234,5 +230,29 @@ public class PartnerRequestService {
         );
     }
 
+    public ApiSuccessResponse getSentRequestStatus(Long senderId) {
+        List<PartnerRequest> requests = requestRepository.findBySenderId(senderId);
+
+        List<SentRequestStatusDTO> responseList = requests.stream()
+                .map(req -> new SentRequestStatusDTO(
+                        req.getReceiver().getId(),
+                        req.getReceiver().getName(),
+                        new SlotInfoDTO(
+                                req.getSlot().getId(),
+                                req.getSlot().getStartTime().toString(),
+                                req.getSlot().getEndTime().toString(),
+                                req.getSlot().getDate().toString()
+                        ),
+                        req.getStatus().name()
+                ))
+                .collect(Collectors.toList());
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "Sent requests fetched successfully.",
+                Map.of("requests", responseList)
+        );
+    }
 
 }

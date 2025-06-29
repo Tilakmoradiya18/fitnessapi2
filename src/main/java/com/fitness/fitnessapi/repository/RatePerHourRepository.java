@@ -10,5 +10,6 @@ import java.util.List;
 
 public interface RatePerHourRepository extends JpaRepository<RatePerHour, Long> {
     Optional<RatePerHour> findByUser(User user);
+    Optional<RatePerHour> findByUserId(Long userId);
 }
 

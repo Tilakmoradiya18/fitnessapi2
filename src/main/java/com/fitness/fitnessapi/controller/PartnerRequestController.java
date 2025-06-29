@@ -74,7 +74,10 @@ public class PartnerRequestController {
         return ResponseEntity.ok(response);
     }
 
-
-
+    @GetMapping("/sent-status")
+    public ResponseEntity<ApiSuccessResponse> getSentStatus(HttpServletRequest request) {
+        Long senderId = jwtUtil.extractUserIdFromRequest(request);
+        return ResponseEntity.ok(requestService.getSentRequestStatus(senderId));
+    }
 
 }

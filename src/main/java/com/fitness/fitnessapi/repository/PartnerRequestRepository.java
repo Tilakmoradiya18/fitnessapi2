@@ -10,5 +10,5 @@ import java.util.Optional;
 public interface PartnerRequestRepository extends JpaRepository<PartnerRequest, Long> {
     Optional<PartnerRequest> findBySenderIdAndSlotIdAndStatus(Long senderId, Long slotId, RequestStatus status);
     List<PartnerRequest> findByReceiverIdAndStatusIn(Long receiverId, List<RequestStatus> statuses);
-
+    List<PartnerRequest> findBySenderId(Long senderId);
 }
