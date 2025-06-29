@@ -1,12 +1,14 @@
 package com.fitness.fitnessapi.dto;
 
 public class PartnerRequestResponseDTO {
+    private Long requestId;
     private Long senderId;
     private String senderName;
     private SlotInfoDTO slot;
     private String status;
 
-    public PartnerRequestResponseDTO(Long senderId, String senderName, SlotInfoDTO slot, String status) {
+    public PartnerRequestResponseDTO(Long requestId,Long senderId, String senderName, SlotInfoDTO slot, String status) {
+        this.requestId = requestId;
         this.senderId = senderId;
         this.senderName = senderName;
         this.slot = slot;
@@ -46,6 +48,14 @@ public class PartnerRequestResponseDTO {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public Long getRequestId() {
+        return requestId;
+    }
+
+    public void setRequestId(Long requestId) {
+        this.requestId = requestId;
     }
 }
 

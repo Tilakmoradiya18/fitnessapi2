@@ -11,6 +11,7 @@ import com.fitness.fitnessapi.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -111,14 +112,53 @@ public class PartnerRequestService {
         );
     }
 
-
+//
+//    public ApiSuccessResponse getUpcomingRequestsForPartner(Long partnerId) {
+//        List<PartnerRequest> requests = requestRepository
+//                .findByReceiverIdAndStatusIn(partnerId, List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED));
+//
+//        LocalDate today = LocalDate.now();
+//
+//        List<PartnerRequestResponseDTO> responseList = requests.stream()
+//                .filter(req -> {
+//                    TimeSlot slot = req.getSlot();
+//                    // Include only non-expired and today or future dates
+//                    return !slot.isExpired() && !slot.getDate().isBefore(today);
+//                })
+//                .map(req -> new PartnerRequestResponseDTO(
+//                        req.getSender().getId(),
+//                        req.getSender().getName(),
+//                        new SlotInfoDTO(
+//                                req.getSlot().getId(),
+//                                req.getSlot().getStartTime().toString(),
+//                                req.getSlot().getEndTime().toString(),
+//                                req.getSlot().getDate().toString()
+//                        ),
+//                        req.getStatus().name()
+//                ))
+//                .collect(Collectors.toList());
+//
+//        return new ApiSuccessResponse(
+//                LocalDateTime.now(),
+//                200,
+//                "Upcoming requests fetched successfully.",
+//                Map.of("requests", responseList)
+//        );
+//    }
 
     public ApiSuccessResponse getUpcomingRequestsForPartner(Long partnerId) {
         List<PartnerRequest> requests = requestRepository
                 .findByReceiverIdAndStatusIn(partnerId, List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED));
 
+        LocalDate today = LocalDate.now();
+
         List<PartnerRequestResponseDTO> responseList = requests.stream()
+                .filter(req -> {
+                    TimeSlot slot = req.getSlot();
+                    return !slot.isExpired() && !slot.getDate().isBefore(today);
+                })
                 .map(req -> new PartnerRequestResponseDTO(
+                        req.getId(),  // 👈 include requestId here
                         req.getSender().getId(),
                         req.getSender().getName(),
                         new SlotInfoDTO(
@@ -139,6 +179,60 @@ public class PartnerRequestService {
         );
     }
 
+
+
+    public ApiSuccessResponse acceptRequest(Long receiverId, Long requestId) {
+        PartnerRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found"));
+
+        if (!request.getReceiver().getId().equals(receiverId)) {
+            throw new RuntimeException("Unauthorized action");
+        }
+
+        if (request.getStatus() != RequestStatus.PENDING) {
+            throw new RuntimeException("Request is already handled");
+        }
+
+        // Mark request as accepted
+        request.setStatus(RequestStatus.ACCEPTED);
+        requestRepository.save(request);
+
+        // Mark slot as booked
+        TimeSlot slot = request.getSlot();
+        slot.setBooked(true);
+        timeSlotRepository.save(slot);
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "Request accepted successfully.",
+                null
+        );
+    }
+
+
+    public ApiSuccessResponse rejectRequest(Long receiverId, Long requestId) {
+        PartnerRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found"));
+
+        if (!request.getReceiver().getId().equals(receiverId)) {
+            throw new RuntimeException("Unauthorized action");
+        }
+
+        if (request.getStatus() != RequestStatus.PENDING) {
+            throw new RuntimeException("Request is already handled");
+        }
+
+        request.setStatus(RequestStatus.REJECTED);
+        requestRepository.save(request);
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "Request rejected successfully.",
+                null
+        );
+    }
 
 
 }

@@ -1,6 +1,7 @@
 package com.fitness.fitnessapi.controller;
 
 import com.fitness.fitnessapi.dto.ApiSuccessResponse;
+import com.fitness.fitnessapi.dto.PartnerRequestActionDTO;
 import com.fitness.fitnessapi.dto.PartnerRequestDTO;
 import com.fitness.fitnessapi.dto.TimeSlotResponseDTO;
 import com.fitness.fitnessapi.service.PartnerRequestService;
@@ -50,6 +51,29 @@ public class PartnerRequestController {
         ApiSuccessResponse response = requestService.getUpcomingRequestsForPartner(receiverId);
         return ResponseEntity.ok(response);
     }
+
+
+    @PostMapping("/accept")
+    public ResponseEntity<ApiSuccessResponse> acceptRequest(
+            @RequestBody PartnerRequestActionDTO dto,
+            HttpServletRequest request) {
+
+        Long receiverId = jwtUtil.extractUserIdFromRequest(request);
+        ApiSuccessResponse response = requestService.acceptRequest(receiverId, dto.getRequestId());
+        return ResponseEntity.ok(response);
+    }
+
+
+    @PostMapping("/reject")
+    public ResponseEntity<ApiSuccessResponse> rejectRequest(
+            @RequestBody PartnerRequestActionDTO dto,
+            HttpServletRequest request) {
+
+        Long receiverId = jwtUtil.extractUserIdFromRequest(request);
+        ApiSuccessResponse response = requestService.rejectRequest(receiverId, dto.getRequestId());
+        return ResponseEntity.ok(response);
+    }
+
 
 
 
