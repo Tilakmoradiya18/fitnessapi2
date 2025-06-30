@@ -3,11 +3,13 @@ package com.fitness.fitnessapi.scheduler;
 
 import com.fitness.fitnessapi.entity.TimeSlot;
 import com.fitness.fitnessapi.repository.TimeSlotRepository;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -25,6 +27,7 @@ public class SlotResetScheduler {
             slot.setAvailableToday(false); // Reset daily
         }
         timeSlotRepository.saveAll(allSlots);
+        System.out.println("✅ Running resetDailyAvailability at " + LocalDateTime.now());
     }
 
     // ✅ This runs every 1 minutes → Marks expired slots
@@ -50,4 +53,10 @@ public class SlotResetScheduler {
 
         timeSlotRepository.saveAll(allSlots);
     }
+
+//    @PostConstruct
+//    public void testScheduler() {
+//        System.out.println("🔁 Manually calling resetDailyAvailability at startup...");
+//        resetDailyAvailability();
+//    }
 }

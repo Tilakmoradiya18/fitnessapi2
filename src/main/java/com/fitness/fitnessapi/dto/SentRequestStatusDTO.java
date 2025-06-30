@@ -5,12 +5,14 @@ public class SentRequestStatusDTO {
     private String receiverName;
     private SlotInfoDTO slot;
     private String status;
+    private Double hourlyRate;
 
-    public SentRequestStatusDTO(Long receiverId, String receiverName, SlotInfoDTO slot, String status) {
+    public SentRequestStatusDTO(Long receiverId, String receiverName, SlotInfoDTO slot, String status,double hourlyRate) {
         this.receiverId = receiverId;
         this.receiverName = receiverName;
         this.slot = slot;
         this.status = status;
+        this.hourlyRate = hourlyRate;
     }
 
     // getters/setters
@@ -45,5 +47,13 @@ public class SentRequestStatusDTO {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public Double getHourlyRate() {
+        return hourlyRate;
+    }
+
+    public void setHourlyRate(Double hourlyRate) {
+        this.hourlyRate = hourlyRate;
     }
 }
