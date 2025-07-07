@@ -10,7 +10,9 @@ import com.fitness.fitnessapi.repository.PartnerRequestRepository;
 import com.fitness.fitnessapi.repository.RatePerHourRepository;
 import com.fitness.fitnessapi.repository.TimeSlotRepository;
 import com.fitness.fitnessapi.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -145,33 +147,50 @@ public class PartnerRequestService {
 
 
     public ApiSuccessResponse acceptRequest(Long receiverId, Long requestId) {
-        PartnerRequest request = requestRepository.findById(requestId)
+        PartnerRequest acceptedRequest = requestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Request not found"));
 
-        if (!request.getReceiver().getId().equals(receiverId)) {
+        if (!acceptedRequest.getReceiver().getId().equals(receiverId)) {
             throw new RuntimeException("Unauthorized action");
         }
 
-        if (request.getStatus() != RequestStatus.PENDING) {
+        if (acceptedRequest.getStatus() != RequestStatus.PENDING) {
             throw new RuntimeException("Request is already handled");
         }
 
-        // Mark request as accepted
-        request.setStatus(RequestStatus.ACCEPTED);
-        requestRepository.save(request);
+        // ✅ Mark accepted request
+        acceptedRequest.setStatus(RequestStatus.ACCEPTED);
+        requestRepository.save(acceptedRequest);
 
-        // Mark slot as booked
-        TimeSlot slot = request.getSlot();
-        slot.setBooked(true);
-        timeSlotRepository.save(slot);
+        // ✅ Mark its slot as booked
+        TimeSlot acceptedSlot = acceptedRequest.getSlot();
+        acceptedSlot.setBooked(true);
+        timeSlotRepository.save(acceptedSlot);
+
+        // ✅ Auto-cancel other requests for same sender on same date with same time
+        List<PartnerRequest> conflictingRequests = requestRepository
+                .findBySenderIdAndSlotDateAndStatus(acceptedRequest.getSender().getId(), acceptedSlot.getDate(), RequestStatus.PENDING);
+
+        for (PartnerRequest req : conflictingRequests) {
+            TimeSlot slot = req.getSlot();
+
+            boolean isSameTime = slot.getStartTime().equals(acceptedSlot.getStartTime()) &&
+                    slot.getEndTime().equals(acceptedSlot.getEndTime());
+
+            if (!req.getId().equals(acceptedRequest.getId()) && isSameTime) {
+                req.setStatus(RequestStatus.AUTO_CANCELLED);
+                requestRepository.save(req);
+            }
+        }
 
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
                 200,
-                "Request accepted successfully.",
+                "Request accepted successfully. Conflicting requests auto-cancelled.",
                 null
         );
     }
+
 
 
     public ApiSuccessResponse rejectRequest(Long receiverId, Long requestId) {
@@ -197,35 +216,6 @@ public class PartnerRequestService {
         );
     }
 
-//    public ApiSuccessResponse getSentRequestStatus(Long senderId) {
-//        List<PartnerRequest> requests = requestRepository.findBySenderId(senderId);
-//
-//        Double hourlyRate = ratePerHourRepository.findByUserId(receiver.getId())
-//                .map(RatePerHour::getPrice)
-//                .orElse(null);
-//
-//        List<SentRequestStatusDTO> responseList = requests.stream()
-//                .map(req -> new SentRequestStatusDTO(
-//                        req.getReceiver().getId(),
-//                        req.getReceiver().getName(),
-//                        new SlotInfoDTO(
-//                                req.getSlot().getId(),
-//                                req.getSlot().getStartTime().toString(),
-//                                req.getSlot().getEndTime().toString(),
-//                                req.getSlot().getDate().toString()
-//                        ),
-//                        req.getStatus().name(),
-//                        hourlyRate
-//                ))
-//                .collect(Collectors.toList());
-//
-//        return new ApiSuccessResponse(
-//                LocalDateTime.now(),
-//                200,
-//                "Sent requests fetched successfully.",
-//                Map.of("requests", responseList)
-//        );
-//    }
 
     public ApiSuccessResponse getSentRequestStatus(Long senderId) {
         List<PartnerRequest> requests = requestRepository.findBySenderId(senderId);
@@ -262,6 +252,24 @@ public class PartnerRequestService {
                 Map.of("requests", responseList)
         );
     }
+
+
+    @Scheduled(cron = "0 * * * * *") // Runs every hour
+    @Transactional
+    public void autoCancelExpiredRequests() {
+        List<PartnerRequest> pendingRequests = requestRepository.findByStatus(RequestStatus.PENDING);
+
+        for (PartnerRequest request : pendingRequests) {
+            TimeSlot slot = request.getSlot();
+            if (slot.isExpired()) {
+                request.setStatus(RequestStatus.AUTO_CANCELLED);
+            }
+        }
+
+        requestRepository.saveAll(pendingRequests);
+        System.out.println("✅ Auto-cancelled expired pending partner requests");
+    }
+
 
 
 }
