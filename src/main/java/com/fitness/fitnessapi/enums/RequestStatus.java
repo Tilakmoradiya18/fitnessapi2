@@ -5,4 +5,5 @@ public enum RequestStatus {
     ACCEPTED,
     REJECTED,
     AUTO_CANCELLED,
+    CANCELLED
 }

@@ -1,9 +1,6 @@
 package com.fitness.fitnessapi.controller;
 
-import com.fitness.fitnessapi.dto.ApiSuccessResponse;
-import com.fitness.fitnessapi.dto.PartnerRequestActionDTO;
-import com.fitness.fitnessapi.dto.PartnerRequestDTO;
-import com.fitness.fitnessapi.dto.TimeSlotResponseDTO;
+import com.fitness.fitnessapi.dto.*;
 import com.fitness.fitnessapi.service.PartnerRequestService;
 import com.fitness.fitnessapi.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -79,5 +76,12 @@ public class PartnerRequestController {
         Long senderId = jwtUtil.extractUserIdFromRequest(request);
         return ResponseEntity.ok(requestService.getSentRequestStatus(senderId));
     }
+
+    @PostMapping("/cancel")
+    public ApiSuccessResponse cancelRequest(@RequestBody CancelRequestDto cancelRequestDto, HttpServletRequest request) {
+        return requestService.cancelSentRequest(cancelRequestDto.getRequestId(), request);
+    }
+
+
 
 }

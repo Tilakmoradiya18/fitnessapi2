@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Service
 public class WalletService {
@@ -107,5 +108,28 @@ public class WalletService {
             throw new RuntimeException("Invalid OTP");
         }
     }
+
+    public ApiSuccessResponse getWalletBalance(HttpServletRequest httpRequest) {
+        String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Wallet wallet = walletRepository.findByUser(user)
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+
+        Map<String, Object> data = Map.of(
+                "balance", wallet.getBalance(),
+                "lastUpdate", wallet.getLastUpdate()
+        );
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "Wallet balance fetched successfully.",
+                data
+        );
+    }
+
+
 }
 

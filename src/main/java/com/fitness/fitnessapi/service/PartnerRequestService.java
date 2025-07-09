@@ -10,6 +10,8 @@ import com.fitness.fitnessapi.repository.PartnerRequestRepository;
 import com.fitness.fitnessapi.repository.RatePerHourRepository;
 import com.fitness.fitnessapi.repository.TimeSlotRepository;
 import com.fitness.fitnessapi.repository.UserRepository;
+import com.fitness.fitnessapi.util.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -35,9 +37,12 @@ public class PartnerRequestService {
     @Autowired
     private RatePerHourRepository ratePerHourRepository;
 
-
     @Autowired
     private PartnerRequestRepository requestRepository;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
 
 
     public ApiSuccessResponse sendRequest(Long senderId, PartnerRequestDTO dto) {
@@ -192,7 +197,6 @@ public class PartnerRequestService {
     }
 
 
-
     public ApiSuccessResponse rejectRequest(Long receiverId, Long requestId) {
         PartnerRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Request not found"));
@@ -270,6 +274,32 @@ public class PartnerRequestService {
         System.out.println("✅ Auto-cancelled expired pending partner requests");
     }
 
+    public ApiSuccessResponse cancelSentRequest(Long requestId, HttpServletRequest httpRequest) {
+        String email = jwtUtil.extractUsername(jwtUtil.extractToken(httpRequest));
+        User sender = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        PartnerRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found"));
+
+        if (!request.getSender().getId().equals(sender.getId())) {
+            throw new RuntimeException("Unauthorized cancellation");
+        }
+
+        if (request.getStatus() != RequestStatus.PENDING) {
+            throw new RuntimeException("Cannot cancel request after it is accepted, rejected, or expired.");
+        }
+
+        request.setStatus(RequestStatus.CANCELLED);
+        requestRepository.save(request);
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "Request cancelled successfully.",
+                null
+        );
+    }
 
 
 }
