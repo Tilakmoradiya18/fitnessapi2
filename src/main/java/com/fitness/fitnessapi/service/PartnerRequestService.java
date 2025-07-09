@@ -235,6 +235,7 @@ public class PartnerRequestService {
                             .orElse(null); // or .orElse(0.0)
 
                     return new SentRequestStatusDTO(
+                            req.getId(),
                             receiverId,
                             receiverName,
                             new SlotInfoDTO(

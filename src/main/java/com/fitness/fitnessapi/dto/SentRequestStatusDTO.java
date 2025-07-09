@@ -1,18 +1,20 @@
 package com.fitness.fitnessapi.dto;
 
 public class SentRequestStatusDTO {
+    private Long requestId;
     private Long receiverId;
     private String receiverName;
     private SlotInfoDTO slot;
     private String status;
     private Double hourlyRate;
 
-    public SentRequestStatusDTO(Long receiverId, String receiverName, SlotInfoDTO slot, String status,double hourlyRate) {
+    public SentRequestStatusDTO(Long requestId,Long receiverId, String receiverName, SlotInfoDTO slot, String status,double hourlyRate) {
         this.receiverId = receiverId;
         this.receiverName = receiverName;
         this.slot = slot;
         this.status = status;
         this.hourlyRate = hourlyRate;
+        this.requestId = requestId;
     }
 
     // getters/setters
@@ -55,5 +57,13 @@ public class SentRequestStatusDTO {
 
     public void setHourlyRate(Double hourlyRate) {
         this.hourlyRate = hourlyRate;
+    }
+
+    public Long getRequestId() {
+        return requestId;
+    }
+
+    public void setRequestId(Long requestId) {
+        this.requestId = requestId;
     }
 }
