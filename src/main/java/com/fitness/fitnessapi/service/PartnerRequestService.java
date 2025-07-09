@@ -1,15 +1,10 @@
 package com.fitness.fitnessapi.service;
 
 import com.fitness.fitnessapi.dto.*;
-import com.fitness.fitnessapi.entity.PartnerRequest;
-import com.fitness.fitnessapi.entity.RatePerHour;
-import com.fitness.fitnessapi.entity.TimeSlot;
-import com.fitness.fitnessapi.entity.User;
+import com.fitness.fitnessapi.entity.*;
 import com.fitness.fitnessapi.enums.RequestStatus;
-import com.fitness.fitnessapi.repository.PartnerRequestRepository;
-import com.fitness.fitnessapi.repository.RatePerHourRepository;
-import com.fitness.fitnessapi.repository.TimeSlotRepository;
-import com.fitness.fitnessapi.repository.UserRepository;
+import com.fitness.fitnessapi.enums.TransactionType;
+import com.fitness.fitnessapi.repository.*;
 import com.fitness.fitnessapi.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
@@ -17,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -39,6 +35,12 @@ public class PartnerRequestService {
 
     @Autowired
     private PartnerRequestRepository requestRepository;
+
+    @Autowired
+    private TransactionHistoryRepository transactionHistoryRepository;
+
+    @Autowired
+    private WalletRepository walletRepository;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -151,6 +153,93 @@ public class PartnerRequestService {
     }
 
 
+//    @Transactional
+//    public ApiSuccessResponse acceptRequest(Long receiverId, Long requestId) {
+//        PartnerRequest acceptedRequest = requestRepository.findById(requestId)
+//                .orElseThrow(() -> new RuntimeException("Request not found"));
+//
+//        if (!acceptedRequest.getReceiver().getId().equals(receiverId)) {
+//            throw new RuntimeException("Unauthorized action");
+//        }
+//
+//        if (acceptedRequest.getStatus() != RequestStatus.PENDING) {
+//            throw new RuntimeException("Request is already handled");
+//        }
+//
+//        // ✅ Mark accepted request
+//        acceptedRequest.setStatus(RequestStatus.ACCEPTED);
+//        requestRepository.save(acceptedRequest);
+//
+//        // ✅ Mark its slot as booked
+//        TimeSlot acceptedSlot = acceptedRequest.getSlot();
+//        acceptedSlot.setBooked(true);
+//        timeSlotRepository.save(acceptedSlot);
+//
+//        // ✅ Auto-cancel other requests for same sender on same date with same time
+//        List<PartnerRequest> conflictingRequests = requestRepository
+//                .findBySenderIdAndSlotDateAndStatus(
+//                        acceptedRequest.getSender().getId(),
+//                        acceptedSlot.getDate(),
+//                        RequestStatus.PENDING
+//                );
+//
+//        for (PartnerRequest req : conflictingRequests) {
+//            TimeSlot slot = req.getSlot();
+//            boolean isSameTime = slot.getStartTime().equals(acceptedSlot.getStartTime()) &&
+//                    slot.getEndTime().equals(acceptedSlot.getEndTime());
+//
+//            if (!req.getId().equals(acceptedRequest.getId()) && isSameTime) {
+//                req.setStatus(RequestStatus.AUTO_CANCELLED);
+//                requestRepository.save(req);
+//            }
+//        }
+//
+//        // ✅ Payment logic: Deduct amount from user (sender)
+//        User sender = acceptedRequest.getSender();
+//        User partner = acceptedRequest.getReceiver();
+//
+//        long hours = Duration.between(acceptedSlot.getStartTime(), acceptedSlot.getEndTime()).toHours();
+//        double rate = ratePerHourRepository.findByUser(partner)
+//                .map(RatePerHour::getPrice)
+//                .orElse(0.0);
+//        double totalAmount = rate * hours;
+//
+//        Wallet senderWallet = walletRepository.findByUser(sender)
+//                .orElseThrow(() -> new RuntimeException("Sender wallet not found"));
+//
+//        if (senderWallet.getBalance() < totalAmount) {
+//            throw new RuntimeException("Insufficient balance to confirm request.");
+//        }
+//
+//        // Deduct balance
+//        senderWallet.setBalance(senderWallet.getBalance() - totalAmount);
+//        senderWallet.setLastUpdate(LocalDateTime.now());
+//        walletRepository.save(senderWallet);
+//
+//        // Save transaction (DEBIT)
+//        TransactionHistory debitTransaction = new TransactionHistory();
+//        debitTransaction.setUser(sender);
+//        debitTransaction.setAmount(totalAmount);
+//        debitTransaction.setType(TransactionType.DEBIT);
+//        debitTransaction.setReferenceUser(partner);
+//        debitTransaction.setCreatedAt(LocalDateTime.now());
+//
+//        TransactionHistory savedTransaction = transactionHistoryRepository.save(debitTransaction);
+//
+//        // ✅ Return transactionId to frontend (Flutter)
+//        return new ApiSuccessResponse(
+//                LocalDateTime.now(),
+//                200,
+//                "Request accepted successfully. Amount debited and conflicting requests auto-cancelled.",
+//                Map.of(
+//                        "transactionId", savedTransaction.getId(),
+//                        "amount", totalAmount,
+//                        "partnerName", partner.getName()
+//                )
+//        );
+//    }
+
+    @Transactional
     public ApiSuccessResponse acceptRequest(Long receiverId, Long requestId) {
         PartnerRequest acceptedRequest = requestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Request not found"));
@@ -172,13 +261,16 @@ public class PartnerRequestService {
         acceptedSlot.setBooked(true);
         timeSlotRepository.save(acceptedSlot);
 
-        // ✅ Auto-cancel other requests for same sender on same date with same time
+        // ✅ Auto-cancel other same-time requests for the sender
         List<PartnerRequest> conflictingRequests = requestRepository
-                .findBySenderIdAndSlotDateAndStatus(acceptedRequest.getSender().getId(), acceptedSlot.getDate(), RequestStatus.PENDING);
+                .findBySenderIdAndSlotDateAndStatus(
+                        acceptedRequest.getSender().getId(),
+                        acceptedSlot.getDate(),
+                        RequestStatus.PENDING
+                );
 
         for (PartnerRequest req : conflictingRequests) {
             TimeSlot slot = req.getSlot();
-
             boolean isSameTime = slot.getStartTime().equals(acceptedSlot.getStartTime()) &&
                     slot.getEndTime().equals(acceptedSlot.getEndTime());
 
@@ -188,13 +280,57 @@ public class PartnerRequestService {
             }
         }
 
+        // ✅ Payment Logic
+
+        // 1. Get rate/hour from partner (receiver)
+        User sender = acceptedRequest.getSender();
+        User partner = acceptedRequest.getReceiver();
+
+        Double hourlyRate = ratePerHourRepository.findByUser(partner)
+                .map(RatePerHour::getPrice)
+                .orElseThrow(() -> new RuntimeException("Partner hourly rate not found"));
+
+        // 2. Calculate duration
+        Duration duration = Duration.between(acceptedSlot.getStartTime(), acceptedSlot.getEndTime());
+        long hours = duration.toHours();
+        if (hours == 0) hours = 1; // Minimum 1 hour
+
+        double amount = hourlyRate * hours;
+
+        // 3. Deduct amount from sender's wallet
+        Wallet senderWallet = walletRepository.findByUser(sender)
+                .orElseThrow(() -> new RuntimeException("User wallet not found"));
+
+        if (senderWallet.getBalance() < amount) {
+            throw new RuntimeException("Insufficient balance.");
+        }
+
+        senderWallet.setBalance(senderWallet.getBalance() - amount);
+        senderWallet.setLastUpdate(LocalDateTime.now());
+        walletRepository.save(senderWallet);
+
+        // 4. Insert DEBIT transaction (this will be used for OTP confirmation later)
+        TransactionHistory debitTxn = new TransactionHistory();
+        debitTxn.setUser(sender);
+        debitTxn.setType(TransactionType.DEBIT);
+        debitTxn.setAmount(amount);
+        debitTxn.setReferenceUser(partner);
+        debitTxn.setCreatedAt(LocalDateTime.now());
+        transactionHistoryRepository.save(debitTxn);
+
+        // 🔁 Flutter will use this transactionId for OTP flow
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
                 200,
-                "Request accepted successfully. Conflicting requests auto-cancelled.",
-                null
+                "Request accepted successfully. Amount debited from user wallet.",
+                Map.of(
+                        "debitedAmount", amount,
+                        "transactionId", debitTxn.getId()
+                )
         );
     }
+
+
 
 
     public ApiSuccessResponse rejectRequest(Long receiverId, Long requestId) {

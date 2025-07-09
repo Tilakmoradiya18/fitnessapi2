@@ -26,6 +26,9 @@ public class TransactionHistory {
     @JoinColumn(name = "reference_user_id")
     private User referenceUser; // for sender/receiver (nullable)
 
+    @Column(name = "is_confirmed")
+    private boolean confirmed = false;
+
     private LocalDateTime createdAt;
 
     public Long getId() {
@@ -74,5 +77,13 @@ public class TransactionHistory {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public boolean isConfirmed() {
+        return confirmed;
+    }
+
+    public void setConfirmed(boolean confirmed) {
+        this.confirmed = confirmed;
     }
 }

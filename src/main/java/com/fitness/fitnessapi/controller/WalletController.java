@@ -1,6 +1,7 @@
 package com.fitness.fitnessapi.controller;
 
 import com.fitness.fitnessapi.dto.ApiSuccessResponse;
+import com.fitness.fitnessapi.dto.ConfirmPaymentDTO;
 import com.fitness.fitnessapi.dto.WalletActionRequest;
 import com.fitness.fitnessapi.service.WalletService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,6 +31,11 @@ public class WalletController {
     @GetMapping("/balance")
     public ApiSuccessResponse getWalletBalance(HttpServletRequest request) {
         return walletService.getWalletBalance(request);
+    }
+
+    @PostMapping("/confirm-payment")
+    public ApiSuccessResponse confirmPayment(@RequestBody ConfirmPaymentDTO dto) {
+        return walletService.confirmPayment(dto);
     }
 
 }
