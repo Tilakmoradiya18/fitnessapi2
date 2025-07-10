@@ -32,10 +32,16 @@ public class WalletController {
     public ApiSuccessResponse getWalletBalance(HttpServletRequest request) {
         return walletService.getWalletBalance(request);
     }
+//
+//    @PostMapping("/confirm-payment")
+//    public ApiSuccessResponse confirmPayment(@RequestBody ConfirmPaymentDTO dto) {
+//        return walletService.confirmPayment(dto);
+//    }
 
     @PostMapping("/confirm-payment")
-    public ApiSuccessResponse confirmPayment(@RequestBody ConfirmPaymentDTO dto) {
-        return walletService.confirmPayment(dto);
+    public ResponseEntity<ApiSuccessResponse> confirmPayment(@RequestBody ConfirmPaymentDTO dto) {
+        ApiSuccessResponse response = walletService.confirmPayment(dto);
+        return ResponseEntity.ok(response);
     }
 
 }

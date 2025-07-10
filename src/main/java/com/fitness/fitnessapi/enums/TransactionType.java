@@ -4,5 +4,7 @@ public enum TransactionType {
     ADD,
     WITHDRAW,
     DEBIT,
-    CREDIT
+    CREDIT,
+    BLOCKED,
+    REFUND
 }

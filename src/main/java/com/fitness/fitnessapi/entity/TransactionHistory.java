@@ -31,6 +31,11 @@ public class TransactionHistory {
 
     private LocalDateTime createdAt;
 
+    private String otp; // Add this field
+
+    private boolean completed; // true if credited or refunded
+
+
     public Long getId() {
         return id;
     }
@@ -85,5 +90,21 @@ public class TransactionHistory {
 
     public void setConfirmed(boolean confirmed) {
         this.confirmed = confirmed;
+    }
+
+    public String getOtp() {
+        return otp;
+    }
+
+    public void setOtp(String otp) {
+        this.otp = otp;
+    }
+
+    public boolean isCompleted() {
+        return completed;
+    }
+
+    public void setCompleted(boolean completed) {
+        this.completed = completed;
     }
 }
