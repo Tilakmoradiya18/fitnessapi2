@@ -300,6 +300,26 @@ public class WalletService {
         );
     }
 
+    public Map<String, Object> getOtpByTransactionId(Long transactionId) {
+        TransactionHistory txn = transactionHistoryRepository.findById(transactionId)
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+
+        if (!TransactionType.BLOCKED.equals(txn.getType())) {
+            throw new RuntimeException("OTP not applicable for this transaction type.");
+        }
+
+        if (txn.isCompleted() || txn.isConfirmed()) {
+            throw new RuntimeException("Transaction is already completed or confirmed.");
+        }
+
+        return Map.of(
+                "transactionId", txn.getId(),
+                "otp", txn.getOtp(),
+                "createdAt", txn.getCreatedAt()
+        );
+    }
+
+
 
 
 
