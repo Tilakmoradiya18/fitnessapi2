@@ -220,6 +220,8 @@ public class PartnerRequestService {
         txn.setCreatedAt(LocalDateTime.now());
         txn.setOtp(otp);
         txn.setCompleted(false);
+        txn.setRequest(acceptedRequest); // VERY IMPORTANT
+
         transactionHistoryRepository.save(txn);
 
         return new ApiSuccessResponse(

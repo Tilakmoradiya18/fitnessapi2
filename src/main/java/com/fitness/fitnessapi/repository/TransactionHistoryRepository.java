@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface TransactionHistoryRepository extends JpaRepository<TransactionHistory, Long> {
     List<TransactionHistory> findByUser(User user);
@@ -14,6 +15,8 @@ public interface TransactionHistoryRepository extends JpaRepository<TransactionH
     List<TransactionHistory> findAllByTypeAndCompletedFalseAndConfirmedFalseAndCreatedAtBefore(
             TransactionType type, LocalDateTime beforeTime
     );
+    Optional<TransactionHistory> findByRequestIdAndTypeAndOtp(Long requestId, TransactionType type, String otp);
+    Optional<TransactionHistory> findByRequestIdAndType(Long requestId, TransactionType type);
 
 
 

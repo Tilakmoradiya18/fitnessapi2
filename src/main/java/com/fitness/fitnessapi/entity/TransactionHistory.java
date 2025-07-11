@@ -35,6 +35,18 @@ public class TransactionHistory {
 
     private boolean completed; // true if credited or refunded
 
+    @ManyToOne
+    @JoinColumn(name = "request_id")
+    private PartnerRequest request;
+
+
+    public PartnerRequest getRequest() {
+        return request;
+    }
+
+    public void setRequest(PartnerRequest request) {
+        this.request = request;
+    }
 
     public Long getId() {
         return id;

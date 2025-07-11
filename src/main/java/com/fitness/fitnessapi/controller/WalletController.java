@@ -41,9 +41,10 @@ public class WalletController {
     }
 
     @GetMapping("/otp")
-    public ResponseEntity<?> getOtp(@RequestParam Long transactionId) {
-        return ResponseEntity.ok(walletService.getOtpByTransactionId(transactionId));
+    public ResponseEntity<?> getOtp(@RequestParam Long requestId) {
+        return ResponseEntity.ok(walletService.getOtpByRequestId(requestId));
     }
+
 
 
 }
