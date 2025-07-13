@@ -17,7 +17,7 @@ public interface TransactionHistoryRepository extends JpaRepository<TransactionH
     );
     Optional<TransactionHistory> findByRequestIdAndTypeAndOtp(Long requestId, TransactionType type, String otp);
     Optional<TransactionHistory> findByRequestIdAndType(Long requestId, TransactionType type);
-
+    List<TransactionHistory> findByUserOrderByCreatedAtDesc(User user);
 
 
 }

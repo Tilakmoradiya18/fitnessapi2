@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/wallet")
 public class WalletController {
@@ -45,6 +47,11 @@ public class WalletController {
         return ResponseEntity.ok(walletService.getOtpByRequestId(requestId));
     }
 
+    @GetMapping("/transactions")
+    public ResponseEntity<?> getTransactionHistory(@RequestHeader("Authorization") String authHeader) {
+        Map<String, Object> response = walletService.getUserTransactionHistory(authHeader);
+        return ResponseEntity.ok(response);
+    }
 
 
 }

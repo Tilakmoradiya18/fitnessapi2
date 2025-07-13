@@ -48,6 +48,47 @@ public class PartnerRequestService {
 
 
 
+//    public ApiSuccessResponse sendRequest(Long senderId, PartnerRequestDTO dto) {
+//        User sender = userRepository.findById(senderId)
+//                .orElseThrow(() -> new RuntimeException("Sender not found"));
+//
+//        User receiver = userRepository.findById(dto.getReceiverId())
+//                .orElseThrow(() -> new RuntimeException("Receiver not found"));
+//
+//        LocalTime startTime = LocalTime.parse(dto.getStartTime());
+//        LocalTime endTime = LocalTime.parse(dto.getEndTime());
+//
+//        TimeSlot slot = timeSlotRepository
+//                .findByUserIdAndStartTimeAndEndTimeAndIsBookedFalseAndIsExpiredFalse(
+//                        receiver.getId(), startTime, endTime
+//                ).orElseThrow(() -> new RuntimeException("Requested time slot is not available."));
+//
+//        Optional<PartnerRequest> existing = requestRepository
+//                .findBySenderIdAndSlotIdAndStatus(senderId, slot.getId(), RequestStatus.PENDING);
+//
+//        if (existing.isPresent()) {
+//            throw new RuntimeException("You have already sent a request for this slot.");
+//        }
+//
+//        PartnerRequest request = new PartnerRequest();
+//        request.setSender(sender);
+//        request.setReceiver(receiver);
+//        request.setSlot(slot);
+//        request.setStatus(RequestStatus.PENDING);
+//        request.setRequestedAt(LocalDateTime.now());
+//
+//        requestRepository.save(request);
+//
+//        // ✅ Return proper ApiSuccessResponse
+//        return new ApiSuccessResponse(
+//                LocalDateTime.now(),
+//                200,
+//                "Request sent successfully.",
+//                null
+//        );
+//    }
+//
+
     public ApiSuccessResponse sendRequest(Long senderId, PartnerRequestDTO dto) {
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new RuntimeException("Sender not found"));
@@ -58,11 +99,13 @@ public class PartnerRequestService {
         LocalTime startTime = LocalTime.parse(dto.getStartTime());
         LocalTime endTime = LocalTime.parse(dto.getEndTime());
 
+        // 1. Validate timeslot
         TimeSlot slot = timeSlotRepository
                 .findByUserIdAndStartTimeAndEndTimeAndIsBookedFalseAndIsExpiredFalse(
                         receiver.getId(), startTime, endTime
                 ).orElseThrow(() -> new RuntimeException("Requested time slot is not available."));
 
+        // 2. Check for duplicate request
         Optional<PartnerRequest> existing = requestRepository
                 .findBySenderIdAndSlotIdAndStatus(senderId, slot.getId(), RequestStatus.PENDING);
 
@@ -70,6 +113,26 @@ public class PartnerRequestService {
             throw new RuntimeException("You have already sent a request for this slot.");
         }
 
+        // 3. Calculate hours
+        int durationInMinutes = (int) Duration.between(startTime, endTime).toMinutes();
+        double hours = durationInMinutes / 60.0;
+
+        // 4. Get receiver’s hourly rate
+        double hourlyRate = ratePerHourRepository.findByUser(receiver)
+                .map(RatePerHour::getPrice)
+                .orElseThrow(() -> new RuntimeException("Hourly rate not found for receiver"));
+
+        double amountToBlock = hours * hourlyRate;
+
+        // 5. Check sender’s balance
+        Wallet senderWallet = walletRepository.findByUser(sender)
+                .orElseThrow(() -> new RuntimeException("Sender wallet not found"));
+
+        if (senderWallet.getBalance() < amountToBlock) {
+            throw new RuntimeException("Insufficient wallet balance to send this request.");
+        }
+
+        // 6. Proceed to save the request
         PartnerRequest request = new PartnerRequest();
         request.setSender(sender);
         request.setReceiver(receiver);
@@ -79,7 +142,6 @@ public class PartnerRequestService {
 
         requestRepository.save(request);
 
-        // ✅ Return proper ApiSuccessResponse
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
                 200,
@@ -87,6 +149,7 @@ public class PartnerRequestService {
                 null
         );
     }
+
 
 
     public ApiSuccessResponse getAvailableSlotResponse(Long partnerId) {

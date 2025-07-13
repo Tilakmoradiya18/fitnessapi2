@@ -1,8 +1,6 @@
 package com.fitness.fitnessapi.service;
 
-import com.fitness.fitnessapi.dto.ApiSuccessResponse;
-import com.fitness.fitnessapi.dto.ConfirmPaymentDTO;
-import com.fitness.fitnessapi.dto.WalletActionRequest;
+import com.fitness.fitnessapi.dto.*;
 import com.fitness.fitnessapi.entity.TransactionHistory;
 import com.fitness.fitnessapi.entity.User;
 import com.fitness.fitnessapi.entity.Wallet;
@@ -14,10 +12,13 @@ import com.fitness.fitnessapi.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class WalletService {
@@ -186,25 +187,6 @@ public class WalletService {
     }
 
 
-//    public Map<String, Object> getOtpByTransactionId(Long transactionId) {
-//        TransactionHistory txn = transactionHistoryRepository.findById(transactionId)
-//                .orElseThrow(() -> new RuntimeException("Transaction not found"));
-//
-//        if (!TransactionType.BLOCKED.equals(txn.getType())) {
-//            throw new RuntimeException("OTP not applicable for this transaction type.");
-//        }
-//
-//        if (txn.isCompleted() || txn.isConfirmed()) {
-//            throw new RuntimeException("Transaction is already completed or confirmed.");
-//        }
-//
-//        return Map.of(
-//                "transactionId", txn.getId(),
-//                "otp", txn.getOtp(),
-//                "createdAt", txn.getCreatedAt()
-//        );
-//    }
-
     public Map<String, Object> getOtpByRequestId(Long requestId) {
         TransactionHistory txn = transactionHistoryRepository
                 .findByRequestIdAndType(requestId, TransactionType.BLOCKED)
@@ -221,7 +203,31 @@ public class WalletService {
         );
     }
 
+    public Map<String, Object> getUserTransactionHistory(String authHeader) {
+        String token = authHeader.substring(7);
+        String email = jwtUtil.extractUsername(token);
 
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+
+        List<TransactionHistory> transactions = transactionHistoryRepository.findByUserOrderByCreatedAtDesc(user);
+
+        List<TransactionHistoryDTO> transactionDTOs = transactions.stream()
+                .map(TransactionHistoryDTO::new)
+                .collect(Collectors.toList());
+
+        TransactionHistoryResponse response = new TransactionHistoryResponse(
+                user.getId(),
+                user.getName(),
+                transactionDTOs
+        );
+
+        return Map.of(
+                "status", 200,
+                "message", "Transaction history fetched successfully.",
+                "data", response
+        );
+    }
 
 }
 
