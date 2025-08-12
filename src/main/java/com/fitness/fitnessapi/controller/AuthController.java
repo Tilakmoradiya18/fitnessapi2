@@ -26,9 +26,25 @@ public class AuthController {
     }
 
 
-    @PostMapping("/forgot-password")
-    public ResponseEntity<ApiSuccessResponse> forgotPassword(@RequestBody ForgotPasswordRequest request) {
-        return ResponseEntity.ok(authService.forgotPassword(request));
+//    @PostMapping("/forgot-password")
+//    public ResponseEntity<ApiSuccessResponse> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+//        return ResponseEntity.ok(authService.forgotPassword(request));
+//    }
+
+
+    @PostMapping("/forgot-password/request-otp")
+    public ApiSuccessResponse requestForgotPasswordOtp(@RequestBody ForgotPasswordRequest request) {
+        return authService.requestForgotPasswordOtp(request);
+    }
+
+    @GetMapping("/forgot-password/get-otp")
+    public ApiSuccessResponse getForgotPasswordOtp(@RequestParam Long id) {
+        return authService.getForgotPasswordOtp(id);
+    }
+
+    @PostMapping("/forgot-password/verify-otp")
+    public ApiSuccessResponse verifyForgotPasswordOtp(@RequestBody VerifyOtpRequest request) {
+        return authService.verifyForgotPasswordOtp(request);
     }
 
 

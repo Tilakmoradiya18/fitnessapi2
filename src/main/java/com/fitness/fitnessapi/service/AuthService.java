@@ -175,7 +175,9 @@ import com.fitness.fitnessapi.dto.*;
 import com.fitness.fitnessapi.entity.EmailOtp;
 import com.fitness.fitnessapi.entity.ResetToken;
 import com.fitness.fitnessapi.entity.User;
+import com.fitness.fitnessapi.entity.ForgotPasswordOtp;
 import com.fitness.fitnessapi.repository.EmailOtpRepository;
+import com.fitness.fitnessapi.repository.ForgotPasswordOtpRepository;
 import com.fitness.fitnessapi.repository.ResetTokenRepository;
 import com.fitness.fitnessapi.repository.UserRepository;
 import com.fitness.fitnessapi.util.JwtUtil;
@@ -187,6 +189,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
@@ -202,6 +205,9 @@ public class AuthService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private ForgotPasswordOtpRepository forgotPasswordOtpRepository;
 
     @Autowired
     private ResetTokenRepository resetTokenRepository;
@@ -286,32 +292,102 @@ public class AuthService {
     }
 
     // ---------------------------
-    // Forgot password (unchanged)
+    // Forgot password
     // ---------------------------
-    @Transactional
-    public ApiSuccessResponse forgotPassword(ForgotPasswordRequest request) {
-        Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
 
-        if (userOpt.isEmpty()) {
+    private String generateOtp() {
+        SecureRandom random = new SecureRandom();
+        return String.format("%04d", random.nextInt(10000));
+    }
+
+
+    public ApiSuccessResponse requestForgotPasswordOtp(ForgotPasswordRequest request) {
+        String email = request.getEmail();
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        if (userRepository.findByEmail(email).isEmpty()) {
             throw new IllegalArgumentException("Email not registered");
         }
 
-        if (!"0000".equals(request.getOtp())) {
+        // generate 4-digit OTP
+        String otp = generateOtp();
+
+        // Check if record already exists for this email
+        Optional<ForgotPasswordOtp> existingOtpOpt = forgotPasswordOtpRepository.findByEmail(email);
+
+        ForgotPasswordOtp saved;
+        if (existingOtpOpt.isPresent()) {
+            // Update existing record
+            ForgotPasswordOtp existingOtp = existingOtpOpt.get();
+            existingOtp.setOtp(otp);
+            existingOtp.setVerified(false); // reset verification
+            saved = forgotPasswordOtpRepository.save(existingOtp);
+        } else {
+            // Create new record
+            ForgotPasswordOtp emailOtp = new ForgotPasswordOtp(email, otp, false);
+            saved = forgotPasswordOtpRepository.save(emailOtp);
+        }
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "OTP generated successfully",
+                Map.of("id", saved.getId(), "otp", saved.getOtp())
+        );
+    }
+
+    // Step 2: Get OTP by ID
+    public ApiSuccessResponse getForgotPasswordOtp(Long id) {
+        ForgotPasswordOtp otpEntity = forgotPasswordOtpRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("OTP record not found"));
+
+        return new ApiSuccessResponse(
+                LocalDateTime.now(),
+                200,
+                "OTP fetched successfully",
+                Map.of(
+                        "id", otpEntity.getId(),
+                        "email", otpEntity.getEmail(),
+                        "otp", otpEntity.getOtp(),
+                        "isVerified", otpEntity.isVerified()
+                )
+        );
+    }
+
+    // Step 3: Verify OTP & Generate Token
+    public ApiSuccessResponse verifyForgotPasswordOtp(VerifyOtpRequest request) {
+        if (request.getId() == null) {
+            throw new IllegalArgumentException("OTP id is required");
+        }
+        if (request.getOtp() == null || request.getOtp().trim().isEmpty()) {
+            throw new IllegalArgumentException("OTP is required");
+        }
+
+        ForgotPasswordOtp otpEntity = forgotPasswordOtpRepository.findById(request.getId())
+                .orElseThrow(() -> new IllegalArgumentException("OTP record not found"));
+
+        if (otpEntity.isVerified()) {
+            throw new IllegalArgumentException("OTP already verified");
+        }
+        if (!otpEntity.getOtp().equals(request.getOtp().trim())) {
             throw new IllegalArgumentException("Invalid OTP");
         }
 
-        // Generate token and save
-        resetTokenRepository.deleteByEmail(request.getEmail());  // clear old tokens if any
+        otpEntity.setVerified(true);
+        forgotPasswordOtpRepository.save(otpEntity);
 
+//        String token = jwtUtil.generateToken(otpEntity.getEmail());
         String token = UUID.randomUUID().toString();
-        ResetToken resetToken = new ResetToken(request.getEmail(), token, LocalDateTime.now().plusMinutes(15));
+        ResetToken resetToken = new ResetToken(otpEntity.getEmail(), token, LocalDateTime.now().plusMinutes(15));
         resetTokenRepository.save(resetToken);
 
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
                 200,
-                "OTP Verified Successfully! Use this token to reset your password.",
-                token  // <-- pass token here so frontend can use it
+                "OTP verified successfully",
+                Map.of("token", token)
         );
     }
 
@@ -360,33 +436,42 @@ public class AuthService {
     // ---------------------------
     // NEW: Request OTP (Step 1)
     // ---------------------------
-    public ApiSuccessResponse requestOtp(RequestOtpRequest request) {
-        String email = request.getEmail();
-        if (email == null || email.trim().isEmpty()) {
-            throw new IllegalArgumentException("Email is required");
-        }
-
-        if (userRepository.findByEmail(email).isPresent()) {
-            throw new IllegalArgumentException("Email already registered");
-        }
-
-        // Remove any existing OTP rows for this email
-        emailOtpRepository.deleteByEmail(email);
-
-        // generate 4-digit OTP
-        String otp = String.format("%04d", new Random().nextInt(10000));
-
-        EmailOtp emailOtp = new EmailOtp(email, otp, false);
-        EmailOtp saved = emailOtpRepository.save(emailOtp);
-
-        // Return id and otp (for testing). In production, do NOT return OTP and send it via email/SMS instead.
-        return new ApiSuccessResponse(
-                LocalDateTime.now(),
-                200,
-                "OTP generated successfully",
-                Map.of("id", saved.getId(), "otp", saved.getOtp())
-        );
+public ApiSuccessResponse requestOtp(RequestOtpRequest request) {
+    String email = request.getEmail();
+    if (email == null || email.trim().isEmpty()) {
+        throw new IllegalArgumentException("Email is required");
     }
+
+    // Check if already registered user
+    if (userRepository.findByEmail(email).isPresent()) {
+        throw new IllegalArgumentException("Email already registered");
+    }
+
+    // generate 4-digit OTP
+    String otp = String.format("%04d", new Random().nextInt(10000));
+
+    EmailOtp saved;
+
+    // Check if OTP entry already exists for this email
+    Optional<EmailOtp> existingOtpOpt = emailOtpRepository.findByEmail(email);
+    if (existingOtpOpt.isPresent()) {
+        EmailOtp existingOtp = existingOtpOpt.get();
+        existingOtp.setOtp(otp);
+        existingOtp.setVerified(false);
+        saved = emailOtpRepository.save(existingOtp);
+    } else {
+        EmailOtp emailOtp = new EmailOtp(email, otp, false);
+        saved = emailOtpRepository.save(emailOtp);
+    }
+
+    // Return id and otp (for testing)
+    return new ApiSuccessResponse(
+            LocalDateTime.now(),
+            200,
+            "OTP generated successfully",
+            Map.of("id", saved.getId(), "otp", saved.getOtp())
+    );
+}
 
     // ---------------------------
     // NEW: Get OTP by id (Step 2 - testing)

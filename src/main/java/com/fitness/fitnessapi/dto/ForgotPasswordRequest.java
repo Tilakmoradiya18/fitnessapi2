@@ -1,20 +1,12 @@
-// ForgotPasswordRequest.java
 package com.fitness.fitnessapi.dto;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 public class ForgotPasswordRequest {
     private String email;
-    private String otp;
-
-    public String getOtp() {
-        return otp;
-    }
-
-    public void setOtp(String otp) {
-        this.otp = otp;
-    }
 
     public String getEmail() {
         return email;
