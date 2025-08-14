@@ -2,7 +2,7 @@
 package com.fitness.fitnessapi.config;
 
 import com.fitness.fitnessapi.security.CustomAccessDeniedHandler;
-import com.fitness.fitnessapi.security.CustomAuthenticationEntryPoint;
+//import com.fitness.fitnessapi.security.CustomAuthenticationEntryPoint;
 import com.fitness.fitnessapi.security.JwtAuthFilter;
 import com.fitness.fitnessapi.service.CustomUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,8 +32,8 @@ public class SecurityConfig {
     private CustomAccessDeniedHandler customAccessDeniedHandler;
 
     @Autowired
-    private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
-
+//    private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+//
     public SecurityConfig(JwtAuthFilter jwtAuthFilter, CustomUserDetailsService userDetailsService) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.userDetailsService = userDetailsService;
@@ -41,6 +41,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        AuthenticationEntryPoint customAuthenticationEntryPoint = null;
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()

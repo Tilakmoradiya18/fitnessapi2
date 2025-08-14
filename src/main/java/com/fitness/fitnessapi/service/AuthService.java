@@ -298,11 +298,12 @@ public class AuthService {
 
         try {
             String subject = "Your OTP Code";
-            String body = "Your OTP code is: " + otp;
-            emailService.sendOtpEmail(email, subject, body);
+            emailService.sendOtpEmail(email, subject, otp); // Only pass OTP, HTML will be built inside EmailService
         } catch (Exception e) {
+            System.err.println("❌ Failed to send OTP email to " + email + ": " + e.getMessage());
             throw new RuntimeException("Failed to send OTP email", e);
         }
+
 
 
         // Return id and otp (for testing)

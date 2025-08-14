@@ -16,7 +16,7 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/api/availability")
 @RequiredArgsConstructor
-public class AvailabilityController {
+public class  AvailabilityController {
 
     @Autowired
     private  AvailabilityService availabilityService;
