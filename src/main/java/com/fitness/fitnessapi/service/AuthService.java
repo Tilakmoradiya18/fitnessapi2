@@ -162,6 +162,14 @@ public class AuthService {
             saved = forgotPasswordOtpRepository.save(emailOtp);
         }
 
+        try {
+            String subject = "Your OTP Code";
+            emailService.sendOtpEmail(email, subject, otp); // Only pass OTP, HTML will be built inside EmailService
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send OTP email to " + email + ": " + e.getMessage());
+            throw new RuntimeException("Failed to send OTP email", e);
+        }
+
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
                 200,
