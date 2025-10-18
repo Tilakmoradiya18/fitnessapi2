@@ -62,10 +62,7 @@ public class AuthController {
         return ResponseEntity.ok("Logged out successfully.");
     }
 
-    /**
-     * Step 1: request otp (body: { "email": "..." } )
-     * Response data contains id and otp (for testing; remove otp in production)
-     */
+
     @PostMapping("/request-otp")
     public ResponseEntity<ApiSuccessResponse> requestOtp(@RequestBody RequestOtpRequest request) {
         return ResponseEntity.ok(authService.requestOtp(request));

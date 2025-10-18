@@ -1,5 +1,7 @@
 package com.fitness.fitnessapi.service;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import com.fitness.fitnessapi.dto.UserProfileRequest;
 import com.fitness.fitnessapi.dto.ApiSuccessResponse;
 import com.fitness.fitnessapi.entity.User;
@@ -33,6 +35,70 @@ public class UserProfileService {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private Cloudinary cloudinary;
+
+//    public ApiSuccessResponse setupProfile(UserProfileRequest request, HttpServletRequest httpRequest) {
+//        String token = jwtUtil.extractToken(httpRequest);
+//        String email = jwtUtil.extractUsername(token);
+//
+//        User user = userRepository.findByEmail(email)
+//                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+//
+//        UserProfile profile = profileRepository.findByUser(user).orElse(new UserProfile());
+//
+//        profile.setUser(user);
+//        profile.setEmail(user.getEmail()); // ✅ store login user's email
+//
+////        profile.setImage(request.getImage());
+//        // ✅ Handle image file upload
+//        MultipartFile imageFile = request.getImage();
+//        if (imageFile != null && !imageFile.isEmpty()) {
+//            try {
+//                // Save to local filesystem (for demo), later move to S3 or DB
+//                String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
+//                String uploadDir = "uploads/"; // Create this folder if not exists
+//                Path uploadPath = Paths.get(uploadDir);
+//                if (!Files.exists(uploadPath)) {
+//                    Files.createDirectories(uploadPath);
+//                }
+//                Path filePath = uploadPath.resolve(fileName);
+//                Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+//
+//                // Save path or URL to DB
+//                profile.setImage(fileName);
+//            } catch (IOException e) {
+//                throw new RuntimeException("Failed to store image: " + e.getMessage());
+//            }
+//        }
+//
+//        profile.setFullName(request.getFullName());
+//        profile.setDateOfBirth(request.getDateOfBirth());
+//        profile.setGender(request.getGender());
+//        profile.setBio(request.getBio());
+//        profile.setCountry(request.getCountry());
+//        profile.setCity(request.getCity());
+//        profile.setZipCode(request.getZipCode());
+//
+//        profileRepository.save(profile);
+//
+//        user.setProfileSetup(true);
+//        userRepository.save(user);
+//
+//        Map<String, Object> responseData = new HashMap<>();
+//        responseData.put("fullName", profile.getFullName());
+//        responseData.put("email", profile.getEmail());
+//
+//        return new ApiSuccessResponse(
+//                LocalDateTime.now(),
+//                201,
+//                "Profile setup completed successfully.",
+//                responseData
+//        );
+//    }
+
+
+
     public ApiSuccessResponse setupProfile(UserProfileRequest request, HttpServletRequest httpRequest) {
         String token = jwtUtil.extractToken(httpRequest);
         String email = jwtUtil.extractUsername(token);
@@ -45,25 +111,18 @@ public class UserProfileService {
         profile.setUser(user);
         profile.setEmail(user.getEmail()); // ✅ store login user's email
 
-//        profile.setImage(request.getImage());
-        // ✅ Handle image file upload
+        // ✅ Upload image to Cloudinary instead of local folder
         MultipartFile imageFile = request.getImage();
         if (imageFile != null && !imageFile.isEmpty()) {
             try {
-                // Save to local filesystem (for demo), later move to S3 or DB
-                String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
-                String uploadDir = "uploads/"; // Create this folder if not exists
-                Path uploadPath = Paths.get(uploadDir);
-                if (!Files.exists(uploadPath)) {
-                    Files.createDirectories(uploadPath);
-                }
-                Path filePath = uploadPath.resolve(fileName);
-                Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-                // Save path or URL to DB
-                profile.setImage(fileName);
+                Map uploadResult = cloudinary.uploader().upload(
+                        imageFile.getBytes(),
+                        ObjectUtils.asMap("folder", "fitness_app_profiles") // optional folder name
+                );
+                String imageUrl = uploadResult.get("secure_url").toString();
+                profile.setImage(imageUrl); // ✅ store Cloudinary URL
             } catch (IOException e) {
-                throw new RuntimeException("Failed to store image: " + e.getMessage());
+                throw new RuntimeException("Failed to upload image to Cloudinary: " + e.getMessage());
             }
         }
 
@@ -83,6 +142,7 @@ public class UserProfileService {
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("fullName", profile.getFullName());
         responseData.put("email", profile.getEmail());
+        responseData.put("imageUrl", profile.getImage());
 
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
@@ -91,6 +151,7 @@ public class UserProfileService {
                 responseData
         );
     }
+
 
 
     public ApiSuccessResponse getProfile(HttpServletRequest httpRequest) {
@@ -124,6 +185,60 @@ public class UserProfileService {
     }
 
 
+//    public ApiSuccessResponse updateProfile(UserProfileRequest request, HttpServletRequest httpRequest) {
+//        String token = jwtUtil.extractToken(httpRequest);
+//        String email = jwtUtil.extractUsername(token);
+//
+//        User user = userRepository.findByEmail(email)
+//                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+//
+//        UserProfile profile = profileRepository.findByUser(user)
+//                .orElseThrow(() -> new IllegalArgumentException("Profile not found"));
+//
+////        profile.setImage(request.getImage());
+//        // ✅ Handle image file upload
+//        MultipartFile imageFile = request.getImage();
+//        if (imageFile != null && !imageFile.isEmpty()) {
+//            try {
+//                // Save to local filesystem (for demo), later move to S3 or DB
+//                String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
+//                String uploadDir = "uploads/"; // Create this folder if not exists
+//                Path uploadPath = Paths.get(uploadDir);
+//                if (!Files.exists(uploadPath)) {
+//                    Files.createDirectories(uploadPath);
+//                }
+//                Path filePath = uploadPath.resolve(fileName);
+//                Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+//
+//                // Save path or URL to DB
+//                profile.setImage(fileName);
+//            } catch (IOException e) {
+//                throw new RuntimeException("Failed to store image: " + e.getMessage());
+//            }
+//        }
+//
+//        profile.setFullName(request.getFullName());
+//        profile.setDateOfBirth(request.getDateOfBirth());
+//        profile.setGender(request.getGender());
+//        profile.setBio(request.getBio());
+//        profile.setCountry(request.getCountry());
+//        profile.setCity(request.getCity());
+//        profile.setZipCode(request.getZipCode());
+//
+//        profileRepository.save(profile);
+//
+//        Map<String, Object> responseData = new HashMap<>();
+//        responseData.put("fullName", profile.getFullName());
+//        responseData.put("email", profile.getEmail());
+//
+//        return new ApiSuccessResponse(
+//                LocalDateTime.now(),
+//                200,
+//                "Profile updated successfully.",
+//                responseData
+//        );
+//    }
+
     public ApiSuccessResponse updateProfile(UserProfileRequest request, HttpServletRequest httpRequest) {
         String token = jwtUtil.extractToken(httpRequest);
         String email = jwtUtil.extractUsername(token);
@@ -134,28 +249,26 @@ public class UserProfileService {
         UserProfile profile = profileRepository.findByUser(user)
                 .orElseThrow(() -> new IllegalArgumentException("Profile not found"));
 
-//        profile.setImage(request.getImage());
-        // ✅ Handle image file upload
+        // ✅ Handle image file upload to Cloudinary
         MultipartFile imageFile = request.getImage();
         if (imageFile != null && !imageFile.isEmpty()) {
             try {
-                // Save to local filesystem (for demo), later move to S3 or DB
-                String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
-                String uploadDir = "uploads/"; // Create this folder if not exists
-                Path uploadPath = Paths.get(uploadDir);
-                if (!Files.exists(uploadPath)) {
-                    Files.createDirectories(uploadPath);
-                }
-                Path filePath = uploadPath.resolve(fileName);
-                Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-                // Save path or URL to DB
-                profile.setImage(fileName);
+                Map uploadResult = cloudinary.uploader().upload(
+                        imageFile.getBytes(),
+                        ObjectUtils.asMap(
+                                "folder", "fitness_app_profiles",
+                                "public_id", user.getId() + "_profile",
+                                "overwrite", true
+                        )
+                );
+                String imageUrl = uploadResult.get("secure_url").toString();
+                profile.setImage(imageUrl);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to store image: " + e.getMessage());
+                throw new RuntimeException("Failed to upload image to Cloudinary: " + e.getMessage());
             }
         }
 
+        // ✅ Update other profile fields
         profile.setFullName(request.getFullName());
         profile.setDateOfBirth(request.getDateOfBirth());
         profile.setGender(request.getGender());
@@ -169,6 +282,7 @@ public class UserProfileService {
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("fullName", profile.getFullName());
         responseData.put("email", profile.getEmail());
+        responseData.put("image", profile.getImage());
 
         return new ApiSuccessResponse(
                 LocalDateTime.now(),
@@ -177,6 +291,5 @@ public class UserProfileService {
                 responseData
         );
     }
-
 
 }
